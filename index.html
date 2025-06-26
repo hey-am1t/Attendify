@@ -19,8 +19,6 @@
         input:read-only { background-color: #f3f4f6; cursor: not-allowed; }
         .btn-loader { border: 2px solid #f3f3f3; border-top: 2px solid #ffffff; border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        /* Search Modal Styles */
-        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 50; }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
@@ -42,12 +40,7 @@
             <div class="space-y-3">
                 <div>
                     <label for="emp-id" class="block text-sm font-medium text-gray-700 mb-1">Employee ID</label>
-                    <div class="flex items-center space-x-2">
-                        <input type="text" id="emp-id" placeholder="Loading data..." disabled class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                        <button id="search-btn" class="p-2 bg-gray-200 rounded-lg hover:bg-gray-300" disabled>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/></svg>
-                        </button>
-                    </div>
+                    <input type="text" id="emp-id" placeholder="Loading data..." disabled class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
                 <div>
                     <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
@@ -72,20 +65,6 @@
         </footer>
     </div>
 
-    <!-- Employee Search Modal -->
-    <div id="search-modal" class="modal-overlay hidden">
-        <div class="bg-white w-full max-w-sm rounded-lg shadow-xl p-4 space-y-3">
-            <div class="flex justify-between items-center">
-                <h3 class="text-lg font-bold">Search Employee</h3>
-                <button id="close-modal-btn" class="text-2xl font-light">&times;</button>
-            </div>
-            <input type="text" id="search-input" placeholder="Type name or ID to search..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-            <ul id="employee-list" class="h-64 overflow-y-auto border rounded-lg">
-                <!-- Search results will be populated here -->
-            </ul>
-        </div>
-    </div>
-
     <script>
         // --- Element References ---
         const video = document.getElementById('camera-feed'), canvas = document.getElementById('photo-canvas');
@@ -93,11 +72,9 @@
         const inBtn = document.getElementById('in-btn'), outBtn = document.getElementById('out-btn');
         const statusMessage = document.getElementById('status-message');
         const switchCameraBtn = document.getElementById('switch-camera-btn');
-        const searchBtn = document.getElementById('search-btn'), searchModal = document.getElementById('search-modal');
-        const closeModalBtn = document.getElementById('close-modal-btn'), searchInput = document.getElementById('search-input'), employeeList = document.getElementById('employee-list');
 
         // ===================================================================================
-        const GAS_URL = 'https://script.google.com/macros/s/AKfycby5ZQ_CsVJR7tPYB-qadfk_9ByChYEoIJcH5gALnYKFsbtYxqlV7z_TGBIADTNDafiF/exec';
+        const GAS_URL = 'PASTE_YOUR_COPIED_WEB_APP_URL_HERE';
         // ===================================================================================
 
         let employeeDatabase = {};
@@ -141,17 +118,14 @@
                 return;
             }
             try {
-                // Get list of cameras
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 videoDevices = devices.filter(device => device.kind === 'videoinput');
                 if (videoDevices.length > 1) {
                     switchCameraBtn.classList.remove('hidden');
                 }
-                // Start with the first camera
                 await startStream();
             } catch (error) {
                 showStatus('Error: Could not access media devices.', true);
-                console.error("Device enumeration error:", error);
             }
         }
 
@@ -159,24 +133,21 @@
             if (currentStream) {
                 currentStream.getTracks().forEach(track => track.stop());
             }
-            const constraints = {
-                video: { deviceId: videoDevices.length ? videoDevices[currentDeviceIndex].deviceId : undefined }
-            };
+            const constraints = { video: { deviceId: videoDevices.length ? videoDevices[currentDeviceIndex].deviceId : undefined } };
             try {
                 currentStream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = currentStream;
                 video.onloadedmetadata = () => showStatus('Camera ready.', false);
             } catch (error) {
                 showStatus('Error: Could not start camera.', true);
-                console.error("Camera start error:", error);
             }
         }
-
-        async function switchCamera() {
+        
+        switchCameraBtn.addEventListener('click', async () => {
             currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
             await startStream();
-        }
-
+        });
+        
         // --- Data and Business Logic ---
         async function fetchEmployeeData() {
             if (GAS_URL === 'PASTE_YOUR_COPIED_WEB_APP_URL_HERE') {
@@ -190,7 +161,6 @@
                 employeeDatabase = await response.json();
                 empIdInput.disabled = false;
                 empIdInput.placeholder = 'e.g., EMP001';
-                searchBtn.disabled = false;
                 inBtn.disabled = false;
                 outBtn.disabled = false;
                 showStatus('System Ready. Please enter your Employee ID.', false);
@@ -210,8 +180,7 @@
                 departmentInput.value = employee.department;
                 showStatus('Employee found. Ready to mark attendance.', false);
             } else {
-                nameInput.value = '';
-                departmentInput.value = '';
+                nameInput.value = ''; departmentInput.value = '';
                 showStatus('Employee ID not found.', true);
             }
         });
@@ -220,9 +189,7 @@
             const empId = empIdInput.value.trim().toUpperCase();
             const name = nameInput.value.trim();
             if (!empId || !name) {
-                showStatus('Please enter a valid Employee ID.', true);
-                empIdInput.focus();
-                return;
+                showStatus('Please enter a valid Employee ID.', true); empIdInput.focus(); return;
             }
             const buttonToLoad = (status === 'IN') ? inBtn : outBtn;
             toggleButtonLoader(buttonToLoad, true);
@@ -235,9 +202,7 @@
                 const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
                 let locationData = { latitude: 'Not Available', longitude: 'Not Available' };
                 try {
-                    const position = await new Promise((resolve, reject) => {
-                        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
-                    });
+                    const position = await new Promise((resolve, reject) => { navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 }); });
                     locationData = { latitude: position.coords.latitude, longitude: position.coords.longitude };
                 } catch (geoError) { console.warn("Geolocation error:", geoError); }
                 const dataToSend = { action: 'markAttendance', empId, name, imageData: imageData.split(',')[1], department: departmentInput.value, status, timestamp, latitude: locationData.latitude, longitude: locationData.longitude, };
@@ -246,9 +211,7 @@
                 if (result.status === 'success') {
                     showStatus(`Attendance marked as "${status}" successfully!`, false);
                     empIdInput.value = ''; nameInput.value = ''; departmentInput.value = '';
-                } else {
-                    throw new Error(result.message || 'Unknown server error.');
-                }
+                } else { throw new Error(result.message || 'Unknown server error.'); }
             } catch (error) {
                 console.error("Submission Error:", error);
                 showStatus(`An error occurred: ${error.message}. Please try again.`, true);
@@ -258,43 +221,8 @@
             }
         }
 
-        // --- Search Modal Logic ---
-        function populateEmployeeList(filter = '') {
-            employeeList.innerHTML = '';
-            const filteredEntries = Object.entries(employeeDatabase).filter(([id, data]) => {
-                const searchTerm = filter.toLowerCase();
-                return id.toLowerCase().includes(searchTerm) || data.name.toLowerCase().includes(searchTerm);
-            });
-            if (filteredEntries.length === 0) {
-                 employeeList.innerHTML = `<li class="p-3 text-center text-gray-500">No results found.</li>`;
-                 return;
-            }
-            filteredEntries.forEach(([id, data]) => {
-                const li = document.createElement('li');
-                li.className = 'p-3 hover:bg-gray-100 cursor-pointer border-b last:border-b-0';
-                li.innerHTML = `<p class="font-semibold">${data.name}</p><p class="text-sm text-gray-500">${id}</p>`;
-                li.addEventListener('click', () => selectEmployee(id));
-                employeeList.appendChild(li);
-            });
-        }
-        function selectEmployee(id) {
-            empIdInput.value = id;
-            empIdInput.dispatchEvent(new Event('blur')); // Trigger auto-fill
-            searchModal.classList.add('hidden');
-        }
-
-        // --- Event Listeners ---
         inBtn.addEventListener('click', () => markAttendance('IN'));
         outBtn.addEventListener('click', () => markAttendance('OUT'));
-        switchCameraBtn.addEventListener('click', switchCamera);
-        searchBtn.addEventListener('click', () => {
-            searchModal.classList.remove('hidden');
-            populateEmployeeList();
-            searchInput.focus();
-        });
-        closeModalBtn.addEventListener('click', () => searchModal.classList.add('hidden'));
-        searchInput.addEventListener('input', (e) => populateEmployeeList(e.target.value));
-
     </script>
 </body>
 </html>
