@@ -34,13 +34,30 @@
             <div class="video-container">
                 <video id="camera-feed" autoplay playsinline class="w-full h-auto rounded-sm bg-gray-200"></video>
                 <canvas id="photo-canvas" class="hidden"></canvas>
-                <button id="switch-camera-btn" class="absolute bottom-2 right-2 bg-white/50 backdrop-blur-sm text-black text-xs font-semibold py-1 px-2 rounded-lg btn-animate hidden">Switch Camera</button>
             </div>
             
             <div class="space-y-3">
                 <div>
                     <label for="emp-id" class="block text-sm font-medium text-gray-700 mb-1">Employee ID</label>
                     <input type="text" id="emp-id" placeholder="Loading data..." disabled class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                 <!-- Location Type Toggle -->
+                <div class="text-sm text-center">
+                    <a href="#" id="toggle-location-btn" class="text-blue-600 hover:underline">Working from Outside?</a>
+                </div>
+                <!-- Location Options -->
+                <div id="location-options-div" class="hidden space-y-2 rounded-lg bg-gray-50 p-3 transition-all duration-300">
+                    <p class="text-sm font-medium text-gray-700">Select Check In/Out Location</p>
+                    <div class="flex items-center space-x-6">
+                        <div class="flex items-center">
+                            <input id="loc-inside" name="location-type" type="radio" value="Inside Office" checked class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
+                            <label for="loc-inside" class="ml-2 block text-sm text-gray-900">Inside</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input id="loc-outside" name="location-type" type="radio" value="Outside" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
+                            <label for="loc-outside" class="ml-2 block text-sm text-gray-900">Outside</label>
+                        </div>
+                    </div>
                 </div>
                 <div>
                     <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
@@ -71,16 +88,14 @@
         const empIdInput = document.getElementById('emp-id'), nameInput = document.getElementById('name'), departmentInput = document.getElementById('department');
         const inBtn = document.getElementById('in-btn'), outBtn = document.getElementById('out-btn');
         const statusMessage = document.getElementById('status-message');
-        const switchCameraBtn = document.getElementById('switch-camera-btn');
+        const toggleLocationBtn = document.getElementById('toggle-location-btn');
+        const locationOptionsDiv = document.getElementById('location-options-div');
 
         // ===================================================================================
         const GAS_URL = 'https://script.google.com/macros/s/AKfycby5ZQ_CsVJR7tPYB-qadfk_9ByChYEoIJcH5gALnYKFsbtYxqlV7z_TGBIADTNDafiF/exec';
         // ===================================================================================
 
         let employeeDatabase = {};
-        let videoDevices = [];
-        let currentDeviceIndex = 0;
-        let currentStream;
 
         // --- Utility Functions ---
         function showStatus(message, isError = false) {
@@ -107,71 +122,39 @@
 
         // --- Main Initialization on Page Load ---
         window.addEventListener('load', async () => {
-            initializeCamera();
+            startCamera();
             fetchEmployeeData();
         });
 
-        // --- Camera Handling ---
-        async function initializeCamera() {
-            if (!navigator.mediaDevices?.getUserMedia) {
-                showStatus('Error: Your browser does not support camera access.', true);
-                return;
-            }
-            try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                videoDevices = devices.filter(device => device.kind === 'videoinput');
-                if (videoDevices.length > 1) {
-                    switchCameraBtn.classList.remove('hidden');
-                }
-                await startStream();
-            } catch (error) {
-                showStatus('Error: Could not access media devices.', true);
-            }
+        async function startCamera() {
+             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+                    video.srcObject = stream;
+                    video.onloadedmetadata = () => showStatus('Camera ready.', false);
+                } catch (error) { showStatus('Error: Camera permission denied.', true); }
+            } else { showStatus('Error: Camera not supported.', true); }
         }
 
-        async function startStream() {
-            if (currentStream) {
-                currentStream.getTracks().forEach(track => track.stop());
-            }
-            const constraints = { video: { deviceId: videoDevices.length ? videoDevices[currentDeviceIndex].deviceId : undefined } };
-            try {
-                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-                video.srcObject = currentStream;
-                video.onloadedmetadata = () => showStatus('Camera ready.', false);
-            } catch (error) {
-                showStatus('Error: Could not start camera.', true);
-            }
-        }
-        
-        switchCameraBtn.addEventListener('click', async () => {
-            currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
-            await startStream();
-        });
-        
-        // --- Data and Business Logic ---
         async function fetchEmployeeData() {
             if (GAS_URL === 'PASTE_YOUR_COPIED_WEB_APP_URL_HERE') {
                 showStatus("Configuration Error: Google Apps Script URL is missing.", true);
-                empIdInput.placeholder = 'Config Error!';
-                return;
+                empIdInput.placeholder = 'Config Error!'; return;
             }
             try {
                 const response = await fetch(GAS_URL + "?action=getEmployees");
                 if (!response.ok) throw new Error(`Server error: ${response.statusText}`);
                 employeeDatabase = await response.json();
-                empIdInput.disabled = false;
-                empIdInput.placeholder = 'e.g., EMP001';
-                inBtn.disabled = false;
-                outBtn.disabled = false;
+                empIdInput.disabled = false; empIdInput.placeholder = 'e.g., EMP001';
+                inBtn.disabled = false; outBtn.disabled = false;
                 showStatus('System Ready. Please enter your Employee ID.', false);
             } catch (error) {
-                console.error("Failed to fetch employee data:", error);
-                showStatus(`Error: Could not load employee data. ${error.message}`, true);
+                showStatus(`Error: Could not load data. ${error.message}`, true);
                 empIdInput.placeholder = 'Loading failed';
             }
         }
         
-        empIdInput.addEventListener('blur', () => {
+        function handleIdInput() {
             const empId = empIdInput.value.trim().toUpperCase();
             if (!empId) return;
             const employee = employeeDatabase[empId];
@@ -183,7 +166,7 @@
                 nameInput.value = ''; departmentInput.value = '';
                 showStatus('Employee ID not found.', true);
             }
-        });
+        }
 
         async function markAttendance(status) {
             const empId = empIdInput.value.trim().toUpperCase();
@@ -200,12 +183,13 @@
                 context.drawImage(video, 0, 0, canvas.width, canvas.height);
                 const imageData = canvas.toDataURL('image/jpeg', 0.9);
                 const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+                const locationType = document.querySelector('input[name="location-type"]:checked').value;
                 let locationData = { latitude: 'Not Available', longitude: 'Not Available' };
                 try {
                     const position = await new Promise((resolve, reject) => { navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 }); });
                     locationData = { latitude: position.coords.latitude, longitude: position.coords.longitude };
                 } catch (geoError) { console.warn("Geolocation error:", geoError); }
-                const dataToSend = { action: 'markAttendance', empId, name, imageData: imageData.split(',')[1], department: departmentInput.value, status, timestamp, latitude: locationData.latitude, longitude: locationData.longitude, };
+                const dataToSend = { action: 'markAttendance', empId, name, locationType, imageData: imageData.split(',')[1], department: departmentInput.value, status, timestamp, latitude: locationData.latitude, longitude: locationData.longitude };
                 const response = await fetch(GAS_URL, { method: 'POST', redirect: "follow", body: JSON.stringify(dataToSend), headers: { "Content-Type": "text/plain;charset=utf-8" } });
                 const result = await response.json();
                 if (result.status === 'success') {
@@ -221,8 +205,21 @@
             }
         }
 
+        // --- Event Listeners ---
         inBtn.addEventListener('click', () => markAttendance('IN'));
         outBtn.addEventListener('click', () => markAttendance('OUT'));
+        empIdInput.addEventListener('blur', handleIdInput);
+        empIdInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleIdInput();
+            }
+        });
+        toggleLocationBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const isHidden = locationOptionsDiv.classList.toggle('hidden');
+            e.target.textContent = isHidden ? 'Working from Outside?' : 'Hide Location Options';
+        });
     </script>
 </body>
 </html>
