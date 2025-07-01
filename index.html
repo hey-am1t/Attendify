@@ -48,11 +48,11 @@
                 </div>
                 <!-- Location Options -->
                 <div id="location-options-div" class="hidden space-y-2 rounded-lg bg-gray-50 p-3 transition-all duration-300">
-                    <p class="text-sm font-medium text-gray-700">Select Check In/Out Location</p>
+                    <p class="text-sm font-medium text-gray-700">Select Location Type</p>
                     <div class="flex items-center space-x-6">
                         <div class="flex items-center">
                             <input id="loc-inside" name="location-type" type="radio" value="Inside Office" checked class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
-                            <label for="loc-inside" class="ml-2 block text-sm text-gray-900">Inside</label>
+                            <label for="loc-inside" class="ml-2 block text-sm text-gray-900">Inside Office</label>
                         </div>
                         <div class="flex items-center">
                             <input id="loc-outside" name="location-type" type="radio" value="Outside" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
@@ -91,12 +91,16 @@
         const statusMessage = document.getElementById('status-message');
         const toggleLocationBtn = document.getElementById('toggle-location-btn');
         const locationOptionsDiv = document.getElementById('location-options-div');
+        const switchCameraBtn = document.getElementById('switch-camera-btn');
 
         // ===================================================================================
-        const GAS_URL = 'https://script.google.com/macros/s/AKfycby5ZQ_CsVJR7tPYB-qadfk_9ByChYEoIJcH5gALnYKFsbtYxqlV7z_TGBIADTNDafiF/exec';
+        const GAS_URL = 'PASTE_YOUR_COPIED_WEB_APP_URL_HERE';
         // ===================================================================================
 
         let employeeDatabase = {};
+        let videoDevices = [];
+        let currentDeviceIndex = 0;
+        let currentStream;
 
         // --- Utility Functions ---
         function showStatus(message, isError = false) {
@@ -123,20 +127,60 @@
 
         // --- Main Initialization on Page Load ---
         window.addEventListener('load', async () => {
-            startCamera();
+            initializeCamera();
             fetchEmployeeData();
         });
 
-        async function startCamera() {
-             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-                    video.srcObject = stream;
-                    video.onloadedmetadata = () => showStatus('Camera ready.', false);
-                } catch (error) { showStatus('Error: Camera permission denied.', true); }
-            } else { showStatus('Error: Camera not supported.', true); }
+        // --- Camera Handling (FIXED) ---
+        async function initializeCamera() {
+            if (!navigator.mediaDevices?.getUserMedia) {
+                showStatus('Error: Camera not supported.', true);
+                return;
+            }
+            try {
+                // Get list of all video cameras
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                videoDevices = devices.filter(device => device.kind === 'videoinput');
+                
+                // Show switch button only if there are multiple cameras
+                if (videoDevices.length > 1) {
+                    switchCameraBtn.classList.remove('hidden');
+                }
+                
+                // Start the camera stream
+                await startStream();
+            } catch (error) {
+                showStatus('Error: Could not access camera.', true);
+                console.error("Camera initialization error:", error);
+            }
         }
 
+        async function startStream() {
+            // Stop any existing stream
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+            // Set constraints for the selected camera
+            const constraints = {
+                video: { deviceId: videoDevices.length ? videoDevices[currentDeviceIndex].deviceId : undefined }
+            };
+            try {
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = currentStream;
+                video.onloadedmetadata = () => showStatus('Camera ready.', false);
+            } catch (error) {
+                showStatus('Error: Could not start camera.', true);
+                console.error("Camera stream error:", error);
+            }
+        }
+
+        async function switchCamera() {
+            // Move to the next camera in the list
+            currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
+            await startStream();
+        }
+
+        // --- Data and Business Logic ---
         async function fetchEmployeeData() {
             if (GAS_URL === 'PASTE_YOUR_COPIED_WEB_APP_URL_HERE') {
                 showStatus("Configuration Error: Google Apps Script URL is missing.", true);
@@ -221,6 +265,8 @@
             const isHidden = locationOptionsDiv.classList.toggle('hidden');
             e.target.textContent = isHidden ? 'Working from Outside?' : 'Hide Location Options';
         });
+        switchCameraBtn.addEventListener('click', switchCamera);
+
     </script>
 </body>
 </html>
