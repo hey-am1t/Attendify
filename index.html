@@ -3,305 +3,616 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Attendance Pro</title>
+    <title>Smart Attendance - Clean UI</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
-        .video-container { border: 10px solid white; box-shadow: 0 4px 8px rgba(0,0,0,0.1), 0 6px 20px rgba(0,0,0,0.1); border-radius: 8px; background: white; position: relative; overflow: hidden; }
+        .video-container { 
+            border: 10px solid white; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1), 0 6px 20px rgba(0,0,0,0.1); 
+            border-radius: 8px; 
+            background: white; 
+            position: relative; 
+            overflow: hidden; 
+            aspect-ratio: 4/3;
+        }
         .btn { transition: all 0.2s ease-in-out; }
         .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
         .btn:active { transform: translateY(0); box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
         input:read-only { background-color: #f3f4f6; cursor: not-allowed; }
-        .btn-loader { border: 2px solid #f3f3f3; border-top: 2px solid #ffffff; border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; }
+        .btn-loader { 
+            border: 2px solid #f3f3f3; 
+            border-top: 2px solid #ffffff; 
+            border-radius: 50%; 
+            width: 16px; 
+            height: 16px; 
+            animation: spin 1s linear infinite; 
+        }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .status-bar-icon { transition: color 0.3s ease; }
         .fade-in { animation: fadeIn 0.5s ease; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .pulse { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+        }
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background-color: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            border-radius: 8px 8px 0 0;
+        }
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #64748b;
+        }
+        .status-icon {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
 
-    <div class="w-full max-w-md mx-auto bg-white rounded-xl shadow-2xl p-6 md:p-8 space-y-5">
-        
-        <header class="text-center relative">
-            <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Smart Attendance Pro</h1>
-            <div id="real-time-clock" class="text-sm text-gray-500 font-medium"></div>
-        </header>
-
+    <div class="w-full max-w-md mx-auto bg-white rounded-xl shadow-2xl overflow-hidden">
         <!-- Status Bar -->
-        <div class="flex justify-around items-center bg-gray-50 rounded-lg p-2 text-xs font-semibold text-gray-600">
-            <div id="status-network" class="flex items-center gap-1.5">
-                <span class="status-bar-icon" id="network-icon"></span> <span id="network-text"></span>
+        <div class="status-bar">
+            <div class="status-item">
+                <div id="network-status-icon" class="status-icon">
+                    <i class="fas fa-circle-notch fa-spin text-gray-400"></i>
+                </div>
+                <span id="network-status-text">Network</span>
             </div>
-            <div id="status-camera" class="flex items-center gap-1.5">
-                <span class="status-bar-icon" id="camera-icon"></span> <span id="camera-text"></span>
+            <div class="status-item">
+                <div id="camera-status-icon" class="status-icon">
+                    <i class="fas fa-circle-notch fa-spin text-gray-400"></i>
+                </div>
+                <span id="camera-status-text">Camera</span>
             </div>
-            <div id="status-sync" class="flex items-center gap-1.5">
-                 <span class="status-bar-icon" id="sync-icon"></span> <span id="sync-text"></span>
+            <div class="status-item">
+                <div id="sync-status-icon" class="status-icon">
+                    <i class="fas fa-circle-notch fa-spin text-gray-400"></i>
+                </div>
+                <span id="sync-status-text">Sync</span>
+            </div>
+            <div class="status-item">
+                <div class="status-icon">
+                    <i class="fas fa-clock text-gray-400"></i>
+                </div>
+                <span id="real-time-clock">--:--:--</span>
             </div>
         </div>
-
-        <main id="app-content" class="space-y-4">
-            <div class="video-container">
-                <video id="camera-feed" autoplay playsinline class="w-full h-auto rounded-sm bg-gray-200"></video>
-                <canvas id="photo-canvas" class="hidden"></canvas>
-                <div class="absolute bottom-2 right-2 flex gap-2">
-                    <button id="torch-btn" class="p-2 bg-white/50 backdrop-blur-sm rounded-full btn hidden" title="Toggle Flash/Torch">
-                        <!-- Torch Icon SVG -->
-                    </button>
-                    <button id="switch-camera-btn" class="p-2 bg-white/50 backdrop-blur-sm rounded-full btn hidden" title="Switch Camera">
-                        <!-- Switch Camera Icon SVG -->
-                    </button>
-                </div>
-            </div>
-            
-            <div class="space-y-3">
-                <div>
-                    <label for="emp-id" class="block text-sm font-medium text-gray-700 mb-1">Employee ID</label>
-                    <input type="text" id="emp-id" placeholder="Loading data..." disabled class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-                <div>
-                    <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                    <input type="text" id="name" placeholder="Auto-filled" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <button id="in-btn" class="w-full bg-green-500 text-white font-bold py-3 px-4 rounded-lg btn flex justify-center items-center" disabled title="Ctrl + I"><span class="btn-text">IN</span></button>
-                <button id="out-btn" class="w-full bg-red-500 text-white font-bold py-3 px-4 rounded-lg btn flex justify-center items-center" disabled title="Ctrl + O"><span class="btn-text">OUT</span></button>
-            </div>
-
-            <div id="status-message" class="text-center text-sm font-medium p-3 rounded-lg hidden fade-in"></div>
-        </main>
         
-        <footer class="text-center pt-4 border-t border-gray-200">
-            <p class="text-xs text-gray-400">Developed by Amit Kumar</p>
-        </footer>
+        <div class="p-6 md:p-8 space-y-5">
+            <header class="text-center">
+                <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Smart Attendance</h1>
+            </header>
+
+            <main id="app-content" class="space-y-4">
+                <div class="video-container">
+                    <video id="camera-feed" autoplay playsinline class="w-full h-full object-cover rounded-sm bg-gray-200"></video>
+                    <canvas id="photo-canvas" class="hidden"></canvas>
+                    <div class="absolute bottom-2 right-2 flex gap-2">
+                        <button id="torch-btn" class="p-2 bg-white/50 backdrop-blur-sm rounded-full btn hidden" title="Toggle Flash/Torch"></button>
+                        <button id="switch-camera-btn" class="p-2 bg-white/50 backdrop-blur-sm rounded-full btn hidden" title="Switch Camera"></button>
+                    </div>
+                </div>
+                
+                <div class="space-y-3">
+                    <div>
+                        <label for="emp-id" class="block text-sm font-medium text-gray-700 mb-1">Employee ID</label>
+                        <input type="text" id="emp-id" placeholder="Loading data..." disabled class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <div class="text-sm text-center">
+                        <a href="#" id="toggle-location-btn" class="text-blue-600 hover:underline">Working from Outside?</a>
+                    </div>
+                    <div id="location-options-div" class="hidden space-y-2 rounded-lg bg-gray-50 p-3 transition-all duration-300">
+                        <p class="text-sm font-medium text-gray-700">Location Type</p>
+                        <div class="flex items-center space-x-6">
+                            <div class="flex items-center"><input id="loc-inside" name="location-type" type="radio" value="Inside Office" checked class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"><label for="loc-inside" class="ml-2 block text-sm text-gray-900">Inside Office</label></div>
+                            <div class="flex items-center"><input id="loc-outside" name="location-type" type="radio" value="Outside" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"><label for="loc-outside" class="ml-2 block text-sm text-gray-900">Outside</label></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                        <input type="text" id="name" placeholder="Auto-filled" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                     <div>
+                        <label for="department" class="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                        <input type="text" id="department" placeholder="Auto-filled" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <button id="in-btn" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg btn flex justify-center items-center gap-2" disabled>
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span class="btn-text">IN</span>
+                    </button>
+                    <button id="out-btn" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-lg btn flex justify-center items-center gap-2" disabled>
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span class="btn-text">OUT</span>
+                    </button>
+                </div>
+
+                <div id="status-message" class="text-center text-sm font-medium p-3 rounded-lg hidden fade-in"></div>
+                
+                <div id="offline-queue" class="hidden text-center text-xs text-gray-500">
+                    <i class="fas fa-database mr-1"></i>
+                    <span id="offline-count">0</span> pending offline records
+                </div>
+            </main>
+            
+            <footer class="text-center pt-4 border-t border-gray-200">
+                <p class="text-xs text-gray-400">Developed by Amit Kumar | <span class="font-medium">v1.2.1</span></p>
+            </footer>
+        </div>
     </div>
 
     <script>
+        // --- Constants ---
+        const MAX_RETRIES = 3;
+        const SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
+        const TIME_SYNC_INTERVAL = 30 * 60 * 1000; // 30 minutes
+        const CAMERA_CHECK_INTERVAL = 5000; // 5 seconds
+        
         // --- Element References ---
         const elements = {
             clock: document.getElementById('real-time-clock'),
-            networkIcon: document.getElementById('network-icon'),
-            networkText: document.getElementById('network-text'),
-            cameraIcon: document.getElementById('camera-icon'),
-            cameraText: document.getElementById('camera-text'),
-            syncIcon: document.getElementById('sync-icon'),
-            syncText: document.getElementById('sync-text'),
-            video: document.getElementById('camera-feed'),
+            video: document.getElementById('camera-feed'), 
             canvas: document.getElementById('photo-canvas'),
-            torchBtn: document.getElementById('torch-btn'),
+            torchBtn: document.getElementById('torch-btn'), 
             switchCameraBtn: document.getElementById('switch-camera-btn'),
-            empIdInput: document.getElementById('emp-id'),
-            nameInput: document.getElementById('name'),
-            inBtn: document.getElementById('in-btn'),
+            empIdInput: document.getElementById('emp-id'), 
+            nameInput: document.getElementById('name'), 
+            departmentInput: document.getElementById('department'),
+            inBtn: document.getElementById('in-btn'), 
             outBtn: document.getElementById('out-btn'),
             statusMessage: document.getElementById('status-message'),
+            toggleLocationBtn: document.getElementById('toggle-location-btn'),
+            locationOptionsDiv: document.getElementById('location-options-div'),
+            offlineQueue: document.getElementById('offline-queue'),
+            offlineCount: document.getElementById('offline-count'),
+            networkStatusIcon: document.getElementById('network-status-icon'),
+            networkStatusText: document.getElementById('network-status-text'),
+            cameraStatusIcon: document.getElementById('camera-status-icon'),
+            cameraStatusText: document.getElementById('camera-status-text'),
+            syncStatusIcon: document.getElementById('sync-status-icon'),
+            syncStatusText: document.getElementById('sync-status-text')
         };
 
         // --- App State ---
         const state = {
             GAS_URL: 'https://script.google.com/macros/s/AKfycbzm3CmnWjmqzyjSW03sBjaTaP2REDtTIvvbp-tUX8ZP9S8ORpT-5dbzpZUl8R7mwPzH/exec',
-            employeeDatabase: {},
-            videoDevices: [],
+            employeeDatabase: {}, 
+            videoDevices: [], 
             currentDeviceIndex: 0,
-            currentStream: null,
-            isTorchSupported: false,
+            currentStream: null, 
+            isTorchSupported: false, 
             isTorchOn: false,
+            serverTimeOffset: 0,
+            pendingSync: false,
+            retryCount: 0,
+            lastCameraCheck: 0,
+            isOnline: navigator.onLine
         };
 
-        // --- Icons ---
-        const icons = {
-            wifi: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M15.384 6.115a.485.485 0 0 0-.047-.736C12.518 3.04 8.976 2 5.5 2S-1.518 3.04.164 5.379a.485.485 0 0 0-.048.736.518.518 0 0 0 .732.05c2.72-2.132 5.82-3.226 9.052-3.226s6.331 1.094 9.052 3.226a.518.518 0 0 0 .732-.05z"/><path d="M13.229 8.271a.482.482 0 0 0-.063-.745C11.334 5.96 8.918 5 5.5 5s-5.834.96-7.666 2.526a.482.482 0 0 0-.063.745.525.525 0 0 0 .755.065c1.725-1.443 3.817-2.182 6.974-2.182s5.248.74 6.974 2.182a.525.525 0 0 0 .755-.065z"/><path d="M11.072 10.424a.51.51 0 0 0-.082-.764C9.536 8.845 7.708 8.162 5.5 8.162s-4.036.683-5.49 1.498a.51.51 0 0 0-.082.764.544.544 0 0 0 .77.077c1.352-.94 2.942-1.422 4.722-1.422s3.37.482 4.722 1.422a.544.544 0 0 0 .77-.077z"/><path d="M8.81 12.579a.536.536 0 0 0-.113-.79C8.06 11.213 6.94 10.75 5.5 10.75s-2.56.463-3.2.839a.536.536 0 0 0-.113.79.566.566 0 0 0 .805.098C3.56 12.895 4.43 12.5 5.5 12.5s1.94.395 2.505.977a.566.566 0 0 0 .805-.098z"/></svg>`,
-            wifiOff: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M10.706 3.294A12.545 12.545 0 0 0 8 3C5.259 3 2.722 3.99 1.074 5.524L.36 6.232l1.215 1.215.85.85C3.51 7.219 5.57 6.5 8 6.5c.71 0 1.408.12 2.06.35L11.294 8l1.414-1.414-1-1-1.293-1.293z"/><path d="M6.918 8.982a6.515 6.515 0 0 0-1.823.32L6.32 10.527a4.978 4.978 0 0 1 2.585-.34l.707-.707a8.51 8.51 0 0 1-2.7-.5zM.94 1.94l.707-.707 12.728 12.728-.707.707L.94 1.94zM4.646 6.646l.708.707C6.038 7.103 6.995 6.905 8 6.905c.746 0 1.46.132 2.126.376l.707-.707C10.048 6.32 9.072 6.105 8 6.105c-1.072 0-2.048.215-2.93.572l-.424-.424z"/><path d="M5.524 10.074l.707.707c.22-.132.45-.255.69-.36l.707-.707c-.352-.16-.72-.294-1.104-.39zM8 11.905c.872 0 1.69.242 2.42.638l.707-.707c-.822-.482-1.76-.74-2.734-.74-1.113 0-2.165.29-3.086.79l.707.707C6.25 12.147 7.095 11.905 8 11.905z"/></svg>`,
-            camera: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M15 12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h1.172a3 3 0 0 0 2.12-.879l.83-.828A1 1 0 0 1 6.827 3h2.344a1 1 0 0 1 .707.293l.828.828A3 3 0 0 0 12.828 5H14a1 1 0 0 1 1 1v6zM2 4.5a.5.5 0 1 0-1 0 .5.5 0 0 0 1 0z"/><path d="M8 11a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/></svg>`,
-            cameraOff: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M10.5 8.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/><path d="M2 4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1.172a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 9.172 2H6.828a2 2 0 0 0-1.414.586l-.828.828A2 2 0 0 1 3.172 4H2zm.5 2a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1zm9 2.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0z"/></svg>`,
-            sync: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/></svg>`,
-            cloudCheck: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4.406 3.342A5.53 5.53 0 0 1 8 2c2.69 0 4.923 2 5.166 4.579C14.758 6.804 16 8.137 16 9.773 16 11.569 14.502 13 12.687 13H3.781C1.708 13 0 11.366 0 9.318c0-1.763 1.266-3.223 2.942-3.593.143-.863.698-1.723 1.464-2.383zm.653.757c-.757.653-1.153 1.44-1.153 2.056v.448l-.445.049C2.064 6.805 1 7.952 1 9.318 1 10.785 2.23 12 3.781 12h8.906C13.98 12 15 10.988 15 9.773c0-1.216-1.02-2.228-2.313-2.228h-.5v-.5C12.188 4.825 10.328 3 8 3a4.53 4.53 0 0 0-2.941 1.1z"/><path d="M10.794 6.206a.5.5 0 0 0-.707-.707L7.06 8.525 5.914 7.379a.5.5 0 1 0-.707.707l1.5 1.5a.5.5 0 0 0 .707 0l3.5-3.5z"/></svg>`,
-            torchOn: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H4zm.25 11a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zM8 6a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>`,
-            torchOff: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H4zm.25 11a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zM8 5.5a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>`,
-            switchCamera: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M11.5 1L8.5 4h3a4 4 0 0 1 0 8H9l3 3 3-3h-1.5a5.5 5.5 0 0 0 0-11h-1zM4.5 5a4 4 0 0 0 0 8H7l-3 3-3-3h1.5a5.5 5.5 0 0 1 0-11h1z"/></svg>`,
-        };
-        
-        // --- Utility & UI Functions ---
-        function showStatus(message, type = 'info') {
-            elements.statusMessage.classList.remove('hidden', 'bg-blue-100', 'text-blue-700', 'bg-red-100', 'text-red-700', 'bg-yellow-100', 'text-yellow-700', 'bg-green-100', 'text-green-700');
-            let bgColor, textColor;
-            switch (type) {
-                case 'error': bgColor = 'bg-red-100'; textColor = 'text-red-700'; break;
-                case 'warning': bgColor = 'bg-yellow-100'; textColor = 'text-yellow-700'; break;
-                case 'success': bgColor = 'bg-green-100'; textColor = 'text-green-700'; break;
-                default: bgColor = 'bg-blue-100'; textColor = 'text-blue-700'; break;
+        // --- Status Bar Functions ---
+        function updateNetworkStatus(online) {
+            state.isOnline = online;
+            if (online) {
+                elements.networkStatusIcon.innerHTML = '<i class="fas fa-wifi text-green-500"></i>';
+                elements.networkStatusText.textContent = 'Online';
+                elements.networkStatusText.className = 'text-green-600';
+            } else {
+                elements.networkStatusIcon.innerHTML = '<i class="fas fa-wifi-slash text-red-500"></i>';
+                elements.networkStatusText.textContent = 'Offline';
+                elements.networkStatusText.className = 'text-red-600';
             }
-            elements.statusMessage.classList.add(bgColor, textColor);
-            elements.statusMessage.textContent = message;
         }
 
-        function updateStatusBar(component, status, text, icon, colorClass) {
-            const iconEl = elements[`${component}Icon`];
-            const textEl = elements[`${component}Text`];
-            iconEl.innerHTML = icon;
-            textEl.textContent = text;
-            iconEl.className = `status-bar-icon ${colorClass}`;
+        function updateCameraStatus(active) {
+            if (active) {
+                elements.cameraStatusIcon.innerHTML = '<i class="fas fa-video text-green-500"></i>';
+                elements.cameraStatusText.textContent = 'Active';
+                elements.cameraStatusText.className = 'text-green-600';
+            } else {
+                elements.cameraStatusIcon.innerHTML = '<i class="fas fa-video-slash text-red-500"></i>';
+                elements.cameraStatusText.textContent = 'Inactive';
+                elements.cameraStatusText.className = 'text-red-600';
+            }
+        }
+
+        function updateSyncStatus(syncing, success = true) {
+            if (syncing) {
+                elements.syncStatusIcon.innerHTML = '<i class="fas fa-circle-notch fa-spin text-blue-500"></i>';
+                elements.syncStatusText.textContent = 'Syncing';
+                elements.syncStatusText.className = 'text-blue-600';
+            } else {
+                if (success) {
+                    elements.syncStatusIcon.innerHTML = '<i class="fas fa-check-circle text-green-500"></i>';
+                    elements.syncStatusText.textContent = 'Synced';
+                    elements.syncStatusText.className = 'text-green-600';
+                } else {
+                    elements.syncStatusIcon.innerHTML = '<i class="fas fa-exclamation-circle text-yellow-500"></i>';
+                    elements.syncStatusText.textContent = 'Pending';
+                    elements.syncStatusText.className = 'text-yellow-600';
+                }
+            }
+        }
+
+        // --- Utility & UI Functions ---
+        function showStatus(message, type = 'info') {
+            const colors = {
+                info: 'bg-blue-100 text-blue-800',
+                success: 'bg-green-100 text-green-800',
+                warning: 'bg-yellow-100 text-yellow-800',
+                error: 'bg-red-100 text-red-800'
+            };
+            
+            elements.statusMessage.className = `text-center text-sm font-medium p-3 rounded-lg fade-in ${colors[type]}`;
+            elements.statusMessage.textContent = message;
+            elements.statusMessage.classList.remove('hidden');
+            
+            // Auto-hide after 5 seconds for non-error messages
+            if (type !== 'error') {
+                setTimeout(() => {
+                    elements.statusMessage.classList.add('hidden');
+                }, 5000);
+            }
         }
 
         function toggleButtonLoader(button, isLoading) {
-            const buttonText = button.querySelector('.btn-text');
+            const btnText = button.querySelector('.btn-text');
+            const btnIcon = button.querySelector('i');
+            
             if (isLoading) {
                 button.disabled = true;
-                buttonText.classList.add('hidden');
                 const loader = document.createElement('div');
                 loader.className = 'btn-loader';
-                button.appendChild(loader);
+                button.insertBefore(loader, btnText);
+                btnText.classList.add('hidden');
+                btnIcon.classList.add('hidden');
             } else {
                 button.disabled = false;
-                buttonText.classList.remove('hidden');
                 const loader = button.querySelector('.btn-loader');
                 if (loader) loader.remove();
+                btnText.classList.remove('hidden');
+                btnIcon.classList.remove('hidden');
             }
         }
         
-        // --- Core Logic ---
-        
-        // 1. Real-time Clock
-        function startClock() {
-            setInterval(() => {
-                elements.clock.textContent = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            }, 1000);
+        function updateOfflineQueueIndicator() {
+            const queue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
+            if (queue.length > 0) {
+                elements.offlineQueue.classList.remove('hidden');
+                elements.offlineCount.textContent = queue.length;
+            } else {
+                elements.offlineQueue.classList.add('hidden');
+            }
         }
 
-        // 2. Network & Sync Status
+        // --- Core Logic ---
+        async function getServerTime() {
+            try {
+                const response = await fetch('https://worldtimeapi.org/api/timezone/Asia/Kolkata');
+                if (!response.ok) throw new Error('Network response was not ok');
+                const data = await response.json();
+                const serverTime = new Date(data.utc_datetime);
+                state.serverTimeOffset = serverTime.getTime() - Date.now();
+                return serverTime;
+            } catch (error) {
+                console.warn("Could not fetch server time, using local time.", error);
+                showStatus("Could not get server time. Using device time.", "warning");
+                return new Date();
+            }
+        }
+
+        function startClock() {
+            // Initial sync
+            getServerTime().then(() => {
+                // Regular time sync
+                setInterval(getServerTime, TIME_SYNC_INTERVAL);
+                
+                // Update clock display every second
+                setInterval(() => {
+                    const localTime = new Date(Date.now() + state.serverTimeOffset);
+                    elements.clock.textContent = localTime.toLocaleTimeString('en-IN', { 
+                        hour: '2-digit', 
+                        minute: '2-digit', 
+                        second: '2-digit' 
+                    });
+                }, 1000);
+            });
+        }
+        
         function handleNetworkStatus() {
-            const update = () => {
-                if (navigator.onLine) {
-                    updateStatusBar('network', 'online', 'Online', icons.wifi, 'text-green-600');
-                    syncOfflineData();
+            const updateStatus = () => {
+                const online = navigator.onLine;
+                updateNetworkStatus(online);
+                
+                if (online) {
+                    if (!state.pendingSync) {
+                        state.pendingSync = true;
+                        updateSyncStatus(true);
+                        syncOfflineData().finally(() => {
+                            state.pendingSync = false;
+                        });
+                    }
                 } else {
-                    updateStatusBar('network', 'offline', 'Offline', icons.wifiOff, 'text-red-600');
                     showStatus('You are offline. Attendance will be saved locally.', 'warning');
                 }
             };
-            update();
-            window.addEventListener('online', update);
-            window.addEventListener('offline', update);
+            
+            updateStatus();
+            window.addEventListener('online', updateStatus);
+            window.addEventListener('offline', updateStatus);
         }
 
-        function updateSyncStatus() {
-            const pendingCount = (JSON.parse(localStorage.getItem('pending_attendance')) || []).length;
-            if (pendingCount > 0) {
-                updateStatusBar('sync', 'pending', `${pendingCount} Pending`, icons.sync, 'text-yellow-600 animate-spin');
-            } else {
-                updateStatusBar('sync', 'synced', 'Synced', icons.cloudCheck, 'text-green-600');
-            }
-        }
-
-        // 3. Camera Handling
-        async function initializeCamera() {
-            if (!navigator.mediaDevices?.getUserMedia) {
-                updateStatusBar('camera', 'error', 'No Camera', icons.cameraOff, 'text-red-600');
+        async function syncOfflineData() {
+            let queue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
+            if (queue.length === 0) {
+                updateOfflineQueueIndicator();
+                updateSyncStatus(false, true);
                 return;
             }
-            try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                state.videoDevices = devices.filter(d => d.kind === 'videoinput');
-                if (state.videoDevices.length > 1) elements.switchCameraBtn.classList.remove('hidden');
-                await startStream();
-            } catch (error) {
-                updateStatusBar('camera', 'error', 'Permission Denied', icons.cameraOff, 'text-red-600');
+            
+            showStatus(`Syncing ${queue.length} offline record(s)...`, 'info');
+            
+            const successfullySyncedIds = [];
+            
+            for (const data of queue) {
+                if (state.retryCount >= MAX_RETRIES) {
+                    showStatus('Max retries reached. Will try again later.', 'warning');
+                    updateSyncStatus(false, false);
+                    break;
+                }
+                
+                try {
+                    const response = await networkRequest(state.GAS_URL, { 
+                        method: 'POST', 
+                        body: JSON.stringify(data) 
+                    });
+                    
+                    const result = await response.json();
+                    if (result.status === 'success') {
+                        successfullySyncedIds.push(data.id);
+                        state.retryCount = 0; // Reset retry count on success
+                    } else {
+                        throw new Error(result.message);
+                    }
+                } catch (error) {
+                    console.error('Failed to sync item:', data.id, error);
+                    state.retryCount++;
+                    break; 
+                }
+            }
+
+            if (successfullySyncedIds.length > 0) {
+                let currentQueue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
+                let newQueue = currentQueue.filter(item => !successfullySyncedIds.includes(item.id));
+                localStorage.setItem('pending_attendance', JSON.stringify(newQueue));
+                showStatus('Offline data synced successfully!', 'success');
+                updateOfflineQueueIndicator();
+            }
+            
+            // Update sync status
+            if (queue.length > successfullySyncedIds.length) {
+                updateSyncStatus(false, false);
+                setTimeout(syncOfflineData, SYNC_INTERVAL);
+            } else {
+                updateSyncStatus(false, true);
             }
         }
 
+        function checkCameraActive() {
+            if (!state.currentStream) return false;
+            
+            const videoTracks = state.currentStream.getVideoTracks();
+            if (videoTracks.length === 0) return false;
+            
+            const track = videoTracks[0];
+            return track.readyState === 'live';
+        }
+
+        function monitorCamera() {
+            const now = Date.now();
+            if (now - state.lastCameraCheck < CAMERA_CHECK_INTERVAL) return;
+            
+            state.lastCameraCheck = now;
+            const isActive = checkCameraActive();
+            updateCameraStatus(isActive);
+            
+            if (!isActive) {
+                showStatus('Camera disconnected. Reconnecting...', 'warning');
+                initializeCamera();
+            }
+        }
+
+        async function initializeCamera() {
+            try {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+                    throw new Error('Camera API not supported');
+                }
+                
+                // Get available video devices
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                state.videoDevices = devices.filter(device => device.kind === 'videoinput');
+                
+                if (state.videoDevices.length === 0) {
+                    throw new Error('No cameras found');
+                }
+                
+                await startStream();
+                
+                // Show camera controls if multiple cameras or torch is supported
+                if (state.videoDevices.length > 1) {
+                    elements.switchCameraBtn.classList.remove('hidden');
+                }
+                
+                checkTorchSupport();
+                updateCameraStatus(true);
+                
+                // Start monitoring camera state
+                setInterval(monitorCamera, CAMERA_CHECK_INTERVAL);
+                
+            } catch (error) {
+                console.error('Camera initialization failed:', error);
+                showStatus('Camera access failed: ' + error.message, 'error');
+                elements.video.style.display = 'none';
+                updateCameraStatus(false);
+            }
+        }
+        
         async function startStream() {
+            // Stop any existing stream
             if (state.currentStream) {
                 state.currentStream.getTracks().forEach(track => track.stop());
             }
-            const constraints = { video: { deviceId: state.videoDevices.length ? state.videoDevices[state.currentDeviceIndex].deviceId : undefined } };
+            
             try {
+                const constraints = {
+                    video: {
+                        deviceId: state.videoDevices[state.currentDeviceIndex].deviceId ? 
+                            { exact: state.videoDevices[state.currentDeviceIndex].deviceId } : true,
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: state.currentDeviceIndex === 0 ? 'user' : 'environment'
+                    }
+                };
+                
                 state.currentStream = await navigator.mediaDevices.getUserMedia(constraints);
                 elements.video.srcObject = state.currentStream;
-                await elements.video.play();
-                updateStatusBar('camera', 'ready', 'Ready', icons.camera, 'text-green-600');
+                
+                // Check torch support for this specific device
                 checkTorchSupport();
+                
             } catch (error) {
-                updateStatusBar('camera', 'error', 'Error', icons.cameraOff, 'text-red-600');
+                console.error('Error accessing camera:', error);
+                showStatus('Could not access camera: ' + error.message, 'error');
+                updateCameraStatus(false);
             }
         }
-
+        
         function checkTorchSupport() {
+            if (!state.currentStream) return;
+            
             const track = state.currentStream.getVideoTracks()[0];
-            const capabilities = track.getCapabilities();
-            state.isTorchSupported = !!capabilities.torch;
+            if (!track) return;
+            
+            if ('getCapabilities' in track) {
+                const capabilities = track.getCapabilities();
+                state.isTorchSupported = capabilities.torch ? true : false;
+            } else {
+                // Fallback for browsers that don't support getCapabilities
+                state.isTorchSupported = false;
+            }
+            
             if (state.isTorchSupported) {
                 elements.torchBtn.classList.remove('hidden');
-                elements.torchBtn.innerHTML = icons.torchOff;
+                elements.torchBtn.innerHTML = '<i class="fas fa-lightbulb"></i>';
             } else {
                 elements.torchBtn.classList.add('hidden');
             }
         }
-
+        
         async function toggleTorch() {
-            if (!state.isTorchSupported) return;
-            const track = state.currentStream.getVideoTracks()[0];
-            state.isTorchOn = !state.isTorchOn;
-            await track.applyConstraints({ advanced: [{ torch: state.isTorchOn }] });
-            elements.torchBtn.innerHTML = state.isTorchOn ? icons.torchOn : icons.torchOff;
-        }
-
-        // 4. Data Handling
-        async function fetchEmployeeData() {
-            // Try to load from cache first
-            const cachedData = localStorage.getItem('employee_database');
-            if (cachedData) {
-                state.employeeDatabase = JSON.parse(cachedData);
-                enableInputs();
-            }
+            if (!state.currentStream || !state.isTorchSupported) return;
             
-            if (!navigator.onLine) {
-                if(!cachedData) showStatus('Offline and no cached data available.', 'error');
-                return;
-            }
-
+            const track = state.currentStream.getVideoTracks()[0];
+            if (!track) return;
+            
             try {
-                const response = await networkRequest(state.GAS_URL + "?action=getEmployees");
-                state.employeeDatabase = await response.json();
-                localStorage.setItem('employee_database', JSON.stringify(state.employeeDatabase));
-                enableInputs();
+                await track.applyConstraints({
+                    advanced: [{ torch: !state.isTorchOn }]
+                });
+                state.isTorchOn = !state.isTorchOn;
+                elements.torchBtn.innerHTML = state.isTorchOn ? '<i class="fas fa-lightbulb text-yellow-300"></i>' : '<i class="fas fa-lightbulb"></i>';
             } catch (error) {
-                showStatus(error.message, 'error');
-                if (!cachedData) elements.empIdInput.placeholder = 'Loading failed';
+                console.error('Error toggling torch:', error);
+                state.isTorchSupported = false;
+                elements.torchBtn.classList.add('hidden');
             }
         }
-
+        
+        async function fetchEmployeeData() {
+            try {
+                const response = await networkRequest(state.GAS_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'getEmployeeData' })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success' && result.data) {
+                    state.employeeDatabase = result.data;
+                    elements.empIdInput.placeholder = "Enter your Employee ID";
+                    enableInputs();
+                } else {
+                    throw new Error(result.message || 'Failed to load employee data');
+                }
+            } catch (error) {
+                console.error('Error fetching employee data:', error);
+                showStatus('Error loading employee data: ' + error.message, 'error');
+                elements.empIdInput.placeholder = "Error loading data";
+            }
+        }
+        
         function enableInputs() {
             elements.empIdInput.disabled = false;
-            elements.empIdInput.placeholder = 'e.g., EMP001';
             elements.inBtn.disabled = false;
             elements.outBtn.disabled = false;
         }
-
+        
         function handleIdInput() {
             const empId = elements.empIdInput.value.trim().toUpperCase();
-            if (!empId) return;
-            const employee = state.employeeDatabase[empId];
-            if (employee) {
-                elements.nameInput.value = employee.name;
-                showStatus('Employee found. Ready to mark attendance.', 'info');
-                elements.inBtn.focus();
-            } else {
+            
+            if (!empId) {
                 elements.nameInput.value = '';
-                showStatus('Employee ID not found.', 'error');
+                elements.departmentInput.value = '';
+                return;
+            }
+            
+            const employee = state.employeeDatabase[empId];
+            
+            if (employee) {
+                elements.nameInput.value = employee.name || '';
+                elements.departmentInput.value = employee.department || '';
+                
+                // Highlight the IN button if it's likely check-in time
+                const now = new Date();
+                const hours = now.getHours();
+                if (hours < 12) { // Morning - likely check-in
+                    elements.inBtn.classList.add('pulse');
+                    elements.outBtn.classList.remove('pulse');
+                } else { // Afternoon - likely check-out
+                    elements.outBtn.classList.add('pulse');
+                    elements.inBtn.classList.remove('pulse');
+                }
+            } else {
+                elements.nameInput.value = 'Not found';
+                elements.departmentInput.value = 'Not found';
+                showStatus('Employee ID not found in database', 'warning');
             }
         }
-
-        // 5. Attendance Marking & Offline Sync
+        
         async function markAttendance(status) {
             const empId = elements.empIdInput.value.trim().toUpperCase();
             const name = elements.nameInput.value.trim();
-            if (!empId || !name) {
+            
+            if (!empId || !name || name === 'Not found') {
                 showStatus('Please enter a valid Employee ID.', 'warning');
                 elements.empIdInput.focus();
                 return;
@@ -309,115 +620,125 @@
             
             const buttonToLoad = (status === 'IN') ? elements.inBtn : elements.outBtn;
             toggleButtonLoader(buttonToLoad, true);
-
-            // Capture photo with timestamp overlay
-            const context = elements.canvas.getContext('2d');
-            elements.canvas.width = elements.video.videoWidth;
-            elements.canvas.height = elements.video.videoHeight;
-            context.drawImage(elements.video, 0, 0, elements.canvas.width, elements.canvas.height);
             
-            const timestamp = new Date();
-            const timestampText = timestamp.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
-            context.font = '24px Inter';
-            context.fillStyle = 'white';
-            context.strokeStyle = 'black';
-            context.lineWidth = 4;
-            context.strokeText(timestampText, 20, elements.canvas.height - 20);
-            context.fillText(timestampText, 20, elements.canvas.height - 20);
-            
-            const imageData = elements.canvas.toDataURL('image/jpeg', 0.9);
-
-            const dataToSend = {
-                id: `att_${Date.now()}`, // Unique ID for offline storage
-                action: 'markAttendance', empId, name,
-                imageData: imageData.split(',')[1],
-                status, timestamp: timestamp.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
-            };
-
-            if (navigator.onLine) {
-                try {
-                    const response = await networkRequest(state.GAS_URL, {
-                        method: 'POST',
-                        body: JSON.stringify(dataToSend)
-                    });
-                    const result = await response.json();
-                    if (result.status !== 'success') throw new Error(result.message);
-                    showStatus(`Attendance marked as "${status}" successfully!`, 'success');
-                    resetForm();
-                } catch (error) {
-                    showStatus(`Online submission failed: ${error.message}. Saving locally.`, 'warning');
+            try {
+                // Capture photo with timestamp
+                const serverTime = await getServerTime();
+                const imageData = await capturePhoto(serverTime);
+                
+                // Prepare data
+                const locationType = document.querySelector('input[name="location-type"]:checked').value;
+                
+                const dataToSend = {
+                    id: `att_${Date.now()}`,
+                    action: 'markAttendance', 
+                    empId, 
+                    name,
+                    department: elements.departmentInput.value,
+                    locationType,
+                    imageData: imageData.split(',')[1],
+                    status, 
+                    timestamp: serverTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+                };
+                
+                if (state.isOnline) {
+                    try {
+                        const response = await networkRequest(state.GAS_URL, { 
+                            method: 'POST', 
+                            body: JSON.stringify(dataToSend) 
+                        });
+                        
+                        const result = await response.json();
+                        if (result.status !== 'success') throw new Error(result.message);
+                        
+                        showStatus(`Attendance marked as "${status}" successfully!`, 'success');
+                        resetForm();
+                    } catch (error) {
+                        showStatus(`Online submission failed: ${error.message}. Saving locally.`, 'warning');
+                        saveOffline(dataToSend);
+                    }
+                } else {
                     saveOffline(dataToSend);
                 }
-            } else {
-                saveOffline(dataToSend);
+            } catch (error) {
+                showStatus(`Error capturing photo: ${error.message}`, 'error');
+            } finally {
+                toggleButtonLoader(buttonToLoad, false);
             }
-            
-            toggleButtonLoader(buttonToLoad, false);
         }
-
+        
+        async function capturePhoto(timestamp) {
+            return new Promise((resolve) => {
+                const context = elements.canvas.getContext('2d');
+                elements.canvas.width = elements.video.videoWidth;
+                elements.canvas.height = elements.video.videoHeight;
+                context.drawImage(elements.video, 0, 0, elements.canvas.width, elements.canvas.height);
+                
+                // Add timestamp watermark
+                if (timestamp) {
+                    const timestampText = timestamp.toLocaleString('en-IN', { 
+                        dateStyle: 'medium', 
+                        timeStyle: 'short' 
+                    });
+                    
+                    context.font = '24px Inter';
+                    context.fillStyle = 'white';
+                    context.strokeStyle = 'black';
+                    context.lineWidth = 4;
+                    context.strokeText(timestampText, 20, elements.canvas.height - 20);
+                    context.fillText(timestampText, 20, elements.canvas.height - 20);
+                }
+                
+                resolve(elements.canvas.toDataURL('image/jpeg', 0.9));
+            });
+        }
+        
         function saveOffline(data) {
-            const queue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
+            let queue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
             queue.push(data);
             localStorage.setItem('pending_attendance', JSON.stringify(queue));
-            showStatus('Offline. Attendance saved locally.', 'info');
-            updateSyncStatus();
-            resetForm();
-        }
-
-        async function syncOfflineData() {
-            const queue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
-            if (queue.length === 0) return;
-
-            updateStatusBar('sync', 'syncing', `Syncing ${queue.length}`, icons.sync, 'text-blue-600 animate-spin');
-            
-            for (const data of queue) {
-                try {
-                    const response = await networkRequest(state.GAS_URL, {
-                        method: 'POST',
-                        body: JSON.stringify(data)
-                    });
-                    const result = await response.json();
-                    if (result.status !== 'success') throw new Error(result.message);
-                    
-                    // Remove from queue on success
-                    const currentQueue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
-                    const newQueue = currentQueue.filter(item => item.id !== data.id);
-                    localStorage.setItem('pending_attendance', JSON.stringify(newQueue));
-                } catch (error) {
-                    console.error('Failed to sync item:', data.id, error);
-                    // Keep item in queue to retry later
-                }
-            }
-            updateSyncStatus();
+            showStatus(`Saved locally (${queue.length} pending). Will sync when online.`, 'warning');
+            updateOfflineQueueIndicator();
+            updateSyncStatus(false, false);
         }
         
         function resetForm() {
             elements.empIdInput.value = '';
             elements.nameInput.value = '';
+            elements.departmentInput.value = '';
             elements.empIdInput.focus();
+            elements.inBtn.classList.remove('pulse');
+            elements.outBtn.classList.remove('pulse');
         }
-
-        // 6. Network Request with Timeout
+        
         async function networkRequest(url, options = {}, timeout = 8000) {
             const controller = new AbortController();
-            const id = setTimeout(() => controller.abort(), timeout);
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
             
-            const response = await fetch(url, {
-                ...options,
-                signal: controller.signal,
-                redirect: "follow",
-                headers: { "Content-Type": "text/plain;charset=utf-8" }
-            });
-
-            clearTimeout(id);
-            if (!response.ok) throw new Error(`Network error: ${response.status} ${response.statusText}`);
-            return response;
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                return response;
+            } catch (error) {
+                clearTimeout(timeoutId);
+                throw error;
+            }
         }
 
-        // --- Event Listeners ---
         function addEventListeners() {
+            // Attendance buttons
             elements.inBtn.addEventListener('click', () => markAttendance('IN'));
             elements.outBtn.addEventListener('click', () => markAttendance('OUT'));
+            
+            // Employee ID input
             elements.empIdInput.addEventListener('blur', handleIdInput);
             elements.empIdInput.addEventListener('keydown', e => {
                 if (e.key === 'Enter') {
@@ -425,39 +746,54 @@
                     handleIdInput();
                 }
             });
+            
+            // Keyboard shortcuts
             document.addEventListener('keydown', e => {
-                if (e.ctrlKey && e.key.toLowerCase() === 'i') {
-                    e.preventDefault();
-                    elements.inBtn.click();
+                if (e.ctrlKey && e.key.toLowerCase() === 'i') { 
+                    e.preventDefault(); 
+                    elements.inBtn.click(); 
                 }
-                if (e.ctrlKey && e.key.toLowerCase() === 'o') {
-                    e.preventDefault();
-                    elements.outBtn.click();
+                if (e.ctrlKey && e.key.toLowerCase() === 'o') { 
+                    e.preventDefault(); 
+                    elements.outBtn.click(); 
                 }
             });
+            
+            // Camera controls
             elements.switchCameraBtn.addEventListener('click', async () => {
                 state.currentDeviceIndex = (state.currentDeviceIndex + 1) % state.videoDevices.length;
                 await startStream();
             });
+            
             elements.torchBtn.addEventListener('click', toggleTorch);
+            
+            // Location options
+            elements.toggleLocationBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const isHidden = elements.locationOptionsDiv.classList.toggle('hidden');
+                e.target.textContent = isHidden ? 'Working from Outside?' : 'Hide Location Options';
+            });
         }
 
-        // --- App Initialization ---
         function init() {
-            // Set icons
-            elements.torchBtn.innerHTML = icons.torchOff;
-            elements.switchCameraBtn.innerHTML = icons.switchCamera;
+            // Initialize status bar
+            updateNetworkStatus(navigator.onLine);
+            updateCameraStatus(false);
+            updateSyncStatus(false);
             
+            // Start core functionality
             startClock();
             handleNetworkStatus();
             initializeCamera();
             fetchEmployeeData();
+            updateOfflineQueueIndicator();
+            
+            // Add event listeners
             addEventListeners();
-            updateSyncStatus();
         }
         
-        init();
-
+        // Start the application
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
