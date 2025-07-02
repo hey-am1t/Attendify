@@ -3,12 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Attendance</title>
+    <title>Smart Attendance - Professional</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
         .video-container { 
@@ -156,7 +153,7 @@
             </main>
             
             <footer class="text-center pt-4 border-t border-gray-200">
-                <p class="text-xs text-gray-400">Developed by Amit Kumar | <span class="font-medium">v1.2.1</span></p>
+                <p class="text-xs text-gray-400">Developed by Amit Kumar | <span class="font-medium">v1.2.2</span></p>
             </footer>
         </div>
     </div>
@@ -195,7 +192,7 @@
 
         // --- App State ---
         const state = {
-            GAS_URL: 'https://script.google.com/macros/s/AKfycbzm3CmnWjmqzyjSW03sBjaTaP2REDtTIvvbp-tUX8ZP9S8ORpT-5dbzpZUl8R7mwPzH/exec',
+            GAS_URL: 'YOUR_DEPLOYED_WEB_APP_URL', // REPLACE WITH YOUR URL
             employeeDatabase: {}, 
             videoDevices: [], 
             currentDeviceIndex: 0,
@@ -381,9 +378,12 @@
                 }
                 
                 try {
-                    const response = await networkRequest(state.GAS_URL, { 
-                        method: 'POST', 
-                        body: JSON.stringify(data) 
+                    const response = await fetch(state.GAS_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(data)
                     });
                     
                     const result = await response.json();
@@ -549,10 +549,11 @@
         
         async function fetchEmployeeData() {
             try {
-                const response = await networkRequest(state.GAS_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: 'getEmployeeData' })
-                });
+                const response = await fetch(`${state.GAS_URL}?action=getEmployees`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
                 
                 const result = await response.json();
                 
@@ -567,6 +568,9 @@
                 console.error('Error fetching employee data:', error);
                 showStatus('Error loading employee data: ' + error.message, 'error');
                 elements.empIdInput.placeholder = "Error loading data";
+                
+                // Retry after 5 seconds
+                setTimeout(fetchEmployeeData, 5000);
             }
         }
         
@@ -643,9 +647,12 @@
                 
                 if (state.isOnline) {
                     try {
-                        const response = await networkRequest(state.GAS_URL, { 
-                            method: 'POST', 
-                            body: JSON.stringify(dataToSend) 
+                        const response = await fetch(state.GAS_URL, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(dataToSend)
                         });
                         
                         const result = await response.json();
@@ -711,28 +718,6 @@
             elements.outBtn.classList.remove('pulse');
         }
         
-        async function networkRequest(url, options = {}, timeout = 8000) {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), timeout);
-            
-            try {
-                const response = await fetch(url, {
-                    ...options,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...options.headers
-                    },
-                    signal: controller.signal
-                });
-                
-                clearTimeout(timeoutId);
-                return response;
-            } catch (error) {
-                clearTimeout(timeoutId);
-                throw error;
-            }
-        }
-
         function addEventListeners() {
             // Attendance buttons
             elements.inBtn.addEventListener('click', () => markAttendance('IN'));
