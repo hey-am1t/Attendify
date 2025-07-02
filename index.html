@@ -3,38 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Attendance System</title>
-    <!-- Tailwind CSS for styling -->
+    <title>Smart Attendance Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts for better readability -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
         .video-container { border: 10px solid white; box-shadow: 0 4px 8px rgba(0,0,0,0.1), 0 6px 20px rgba(0,0,0,0.1); border-radius: 8px; background: white; position: relative; overflow: hidden; }
-        .btn-animate { transition: all 0.2s ease-in-out; }
-        .btn-animate:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-        .btn-animate:active { transform: translateY(0); box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+        .btn { transition: all 0.2s ease-in-out; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .btn:active { transform: translateY(0); box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
         input:read-only { background-color: #f3f4f6; cursor: not-allowed; }
         .btn-loader { border: 2px solid #f3f3f3; border-top: 2px solid #ffffff; border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .status-bar-icon { transition: color 0.3s ease; }
+        .fade-in { animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
 
-    <div class="w-full max-w-md mx-auto bg-white rounded-xl shadow-lg p-6 md:p-8 space-y-5">
+    <div class="w-full max-w-md mx-auto bg-white rounded-xl shadow-2xl p-6 md:p-8 space-y-5">
         
-        <header class="text-center">
-            <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Smart Attendance</h1>
-            <p class="text-gray-500">Mark your attendance</p>
+        <header class="text-center relative">
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Smart Attendance Pro</h1>
+            <div id="real-time-clock" class="text-sm text-gray-500 font-medium"></div>
         </header>
+
+        <!-- Status Bar -->
+        <div class="flex justify-around items-center bg-gray-50 rounded-lg p-2 text-xs font-semibold text-gray-600">
+            <div id="status-network" class="flex items-center gap-1.5">
+                <span class="status-bar-icon" id="network-icon"></span> <span id="network-text"></span>
+            </div>
+            <div id="status-camera" class="flex items-center gap-1.5">
+                <span class="status-bar-icon" id="camera-icon"></span> <span id="camera-text"></span>
+            </div>
+            <div id="status-sync" class="flex items-center gap-1.5">
+                 <span class="status-bar-icon" id="sync-icon"></span> <span id="sync-text"></span>
+            </div>
+        </div>
 
         <main id="app-content" class="space-y-4">
             <div class="video-container">
                 <video id="camera-feed" autoplay playsinline class="w-full h-auto rounded-sm bg-gray-200"></video>
                 <canvas id="photo-canvas" class="hidden"></canvas>
-                <button id="switch-camera-btn" class="absolute bottom-2 right-2 bg-white/50 backdrop-blur-sm text-black text-xs font-semibold py-1 px-2 rounded-lg btn-animate hidden">Switch Camera</button>
+                <div class="absolute bottom-2 right-2 flex gap-2">
+                    <button id="torch-btn" class="p-2 bg-white/50 backdrop-blur-sm rounded-full btn hidden" title="Toggle Flash/Torch">
+                        <!-- Torch Icon SVG -->
+                    </button>
+                    <button id="switch-camera-btn" class="p-2 bg-white/50 backdrop-blur-sm rounded-full btn hidden" title="Switch Camera">
+                        <!-- Switch Camera Icon SVG -->
+                    </button>
+                </div>
             </div>
             
             <div class="space-y-3">
@@ -42,40 +63,18 @@
                     <label for="emp-id" class="block text-sm font-medium text-gray-700 mb-1">Employee ID</label>
                     <input type="text" id="emp-id" placeholder="Loading data..." disabled class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
-                 <!-- Location Type Toggle -->
-                <div class="text-sm text-center">
-                    <a href="#" id="toggle-location-btn" class="text-blue-600 hover:underline">Working from Outside?</a>
-                </div>
-                <!-- Location Options -->
-                <div id="location-options-div" class="hidden space-y-2 rounded-lg bg-gray-50 p-3 transition-all duration-300">
-                    <p class="text-sm font-medium text-gray-700">Select Location Type</p>
-                    <div class="flex items-center space-x-6">
-                        <div class="flex items-center">
-                            <input id="loc-inside" name="location-type" type="radio" value="Inside Office" checked class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
-                            <label for="loc-inside" class="ml-2 block text-sm text-gray-900">Inside Office</label>
-                        </div>
-                        <div class="flex items-center">
-                            <input id="loc-outside" name="location-type" type="radio" value="Outside" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
-                            <label for="loc-outside" class="ml-2 block text-sm text-gray-900">Outside</label>
-                        </div>
-                    </div>
-                </div>
                 <div>
                     <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
                     <input type="text" id="name" placeholder="Auto-filled" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg">
                 </div>
-                 <div>
-                    <label for="department" class="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                    <input type="text" id="department" placeholder="Auto-filled" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                </div>
             </div>
 
             <div class="grid grid-cols-2 gap-4">
-                <button id="in-btn" class="w-full bg-green-500 text-white font-bold py-3 px-4 rounded-lg btn-animate flex justify-center items-center" disabled><span class="btn-text">IN</span></button>
-                <button id="out-btn" class="w-full bg-red-500 text-white font-bold py-3 px-4 rounded-lg btn-animate flex justify-center items-center" disabled><span class="btn-text">OUT</span></button>
+                <button id="in-btn" class="w-full bg-green-500 text-white font-bold py-3 px-4 rounded-lg btn flex justify-center items-center" disabled title="Ctrl + I"><span class="btn-text">IN</span></button>
+                <button id="out-btn" class="w-full bg-red-500 text-white font-bold py-3 px-4 rounded-lg btn flex justify-center items-center" disabled title="Ctrl + O"><span class="btn-text">OUT</span></button>
             </div>
 
-            <div id="status-message" class="text-center text-sm font-medium p-3 rounded-lg hidden"></div>
+            <div id="status-message" class="text-center text-sm font-medium p-3 rounded-lg hidden fade-in"></div>
         </main>
         
         <footer class="text-center pt-4 border-t border-gray-200">
@@ -85,28 +84,69 @@
 
     <script>
         // --- Element References ---
-        const video = document.getElementById('camera-feed'), canvas = document.getElementById('photo-canvas');
-        const empIdInput = document.getElementById('emp-id'), nameInput = document.getElementById('name'), departmentInput = document.getElementById('department');
-        const inBtn = document.getElementById('in-btn'), outBtn = document.getElementById('out-btn');
-        const statusMessage = document.getElementById('status-message');
-        const toggleLocationBtn = document.getElementById('toggle-location-btn');
-        const locationOptionsDiv = document.getElementById('location-options-div');
-        const switchCameraBtn = document.getElementById('switch-camera-btn');
+        const elements = {
+            clock: document.getElementById('real-time-clock'),
+            networkIcon: document.getElementById('network-icon'),
+            networkText: document.getElementById('network-text'),
+            cameraIcon: document.getElementById('camera-icon'),
+            cameraText: document.getElementById('camera-text'),
+            syncIcon: document.getElementById('sync-icon'),
+            syncText: document.getElementById('sync-text'),
+            video: document.getElementById('camera-feed'),
+            canvas: document.getElementById('photo-canvas'),
+            torchBtn: document.getElementById('torch-btn'),
+            switchCameraBtn: document.getElementById('switch-camera-btn'),
+            empIdInput: document.getElementById('emp-id'),
+            nameInput: document.getElementById('name'),
+            inBtn: document.getElementById('in-btn'),
+            outBtn: document.getElementById('out-btn'),
+            statusMessage: document.getElementById('status-message'),
+        };
 
-        // ===================================================================================
-        const GAS_URL = 'https://script.google.com/macros/s/AKfycbzm3CmnWjmqzyjSW03sBjaTaP2REDtTIvvbp-tUX8ZP9S8ORpT-5dbzpZUl8R7mwPzH/exec';
-        // ===================================================================================
+        // --- App State ---
+        const state = {
+            GAS_URL: 'https://script.google.com/macros/s/AKfycbzm3CmnWjmqzyjSW03sBjaTaP2REDtTIvvbp-tUX8ZP9S8ORpT-5dbzpZUl8R7mwPzH/exec',
+            employeeDatabase: {},
+            videoDevices: [],
+            currentDeviceIndex: 0,
+            currentStream: null,
+            isTorchSupported: false,
+            isTorchOn: false,
+        };
 
-        let employeeDatabase = {};
-        let videoDevices = [];
-        let currentDeviceIndex = 0;
-        let currentStream;
+        // --- Icons ---
+        const icons = {
+            wifi: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M15.384 6.115a.485.485 0 0 0-.047-.736C12.518 3.04 8.976 2 5.5 2S-1.518 3.04.164 5.379a.485.485 0 0 0-.048.736.518.518 0 0 0 .732.05c2.72-2.132 5.82-3.226 9.052-3.226s6.331 1.094 9.052 3.226a.518.518 0 0 0 .732-.05z"/><path d="M13.229 8.271a.482.482 0 0 0-.063-.745C11.334 5.96 8.918 5 5.5 5s-5.834.96-7.666 2.526a.482.482 0 0 0-.063.745.525.525 0 0 0 .755.065c1.725-1.443 3.817-2.182 6.974-2.182s5.248.74 6.974 2.182a.525.525 0 0 0 .755-.065z"/><path d="M11.072 10.424a.51.51 0 0 0-.082-.764C9.536 8.845 7.708 8.162 5.5 8.162s-4.036.683-5.49 1.498a.51.51 0 0 0-.082.764.544.544 0 0 0 .77.077c1.352-.94 2.942-1.422 4.722-1.422s3.37.482 4.722 1.422a.544.544 0 0 0 .77-.077z"/><path d="M8.81 12.579a.536.536 0 0 0-.113-.79C8.06 11.213 6.94 10.75 5.5 10.75s-2.56.463-3.2.839a.536.536 0 0 0-.113.79.566.566 0 0 0 .805.098C3.56 12.895 4.43 12.5 5.5 12.5s1.94.395 2.505.977a.566.566 0 0 0 .805-.098z"/></svg>`,
+            wifiOff: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M10.706 3.294A12.545 12.545 0 0 0 8 3C5.259 3 2.722 3.99 1.074 5.524L.36 6.232l1.215 1.215.85.85C3.51 7.219 5.57 6.5 8 6.5c.71 0 1.408.12 2.06.35L11.294 8l1.414-1.414-1-1-1.293-1.293z"/><path d="M6.918 8.982a6.515 6.515 0 0 0-1.823.32L6.32 10.527a4.978 4.978 0 0 1 2.585-.34l.707-.707a8.51 8.51 0 0 1-2.7-.5zM.94 1.94l.707-.707 12.728 12.728-.707.707L.94 1.94zM4.646 6.646l.708.707C6.038 7.103 6.995 6.905 8 6.905c.746 0 1.46.132 2.126.376l.707-.707C10.048 6.32 9.072 6.105 8 6.105c-1.072 0-2.048.215-2.93.572l-.424-.424z"/><path d="M5.524 10.074l.707.707c.22-.132.45-.255.69-.36l.707-.707c-.352-.16-.72-.294-1.104-.39zM8 11.905c.872 0 1.69.242 2.42.638l.707-.707c-.822-.482-1.76-.74-2.734-.74-1.113 0-2.165.29-3.086.79l.707.707C6.25 12.147 7.095 11.905 8 11.905z"/></svg>`,
+            camera: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M15 12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h1.172a3 3 0 0 0 2.12-.879l.83-.828A1 1 0 0 1 6.827 3h2.344a1 1 0 0 1 .707.293l.828.828A3 3 0 0 0 12.828 5H14a1 1 0 0 1 1 1v6zM2 4.5a.5.5 0 1 0-1 0 .5.5 0 0 0 1 0z"/><path d="M8 11a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/></svg>`,
+            cameraOff: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M10.5 8.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/><path d="M2 4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1.172a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 9.172 2H6.828a2 2 0 0 0-1.414.586l-.828.828A2 2 0 0 1 3.172 4H2zm.5 2a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1zm9 2.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0z"/></svg>`,
+            sync: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/></svg>`,
+            cloudCheck: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4.406 3.342A5.53 5.53 0 0 1 8 2c2.69 0 4.923 2 5.166 4.579C14.758 6.804 16 8.137 16 9.773 16 11.569 14.502 13 12.687 13H3.781C1.708 13 0 11.366 0 9.318c0-1.763 1.266-3.223 2.942-3.593.143-.863.698-1.723 1.464-2.383zm.653.757c-.757.653-1.153 1.44-1.153 2.056v.448l-.445.049C2.064 6.805 1 7.952 1 9.318 1 10.785 2.23 12 3.781 12h8.906C13.98 12 15 10.988 15 9.773c0-1.216-1.02-2.228-2.313-2.228h-.5v-.5C12.188 4.825 10.328 3 8 3a4.53 4.53 0 0 0-2.941 1.1z"/><path d="M10.794 6.206a.5.5 0 0 0-.707-.707L7.06 8.525 5.914 7.379a.5.5 0 1 0-.707.707l1.5 1.5a.5.5 0 0 0 .707 0l3.5-3.5z"/></svg>`,
+            torchOn: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H4zm.25 11a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zM8 6a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>`,
+            torchOff: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H4zm.25 11a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zM8 5.5a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>`,
+            switchCamera: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M11.5 1L8.5 4h3a4 4 0 0 1 0 8H9l3 3 3-3h-1.5a5.5 5.5 0 0 0 0-11h-1zM4.5 5a4 4 0 0 0 0 8H7l-3 3-3-3h1.5a5.5 5.5 0 0 1 0-11h1z"/></svg>`,
+        };
+        
+        // --- Utility & UI Functions ---
+        function showStatus(message, type = 'info') {
+            elements.statusMessage.classList.remove('hidden', 'bg-blue-100', 'text-blue-700', 'bg-red-100', 'text-red-700', 'bg-yellow-100', 'text-yellow-700', 'bg-green-100', 'text-green-700');
+            let bgColor, textColor;
+            switch (type) {
+                case 'error': bgColor = 'bg-red-100'; textColor = 'text-red-700'; break;
+                case 'warning': bgColor = 'bg-yellow-100'; textColor = 'text-yellow-700'; break;
+                case 'success': bgColor = 'bg-green-100'; textColor = 'text-green-700'; break;
+                default: bgColor = 'bg-blue-100'; textColor = 'text-blue-700'; break;
+            }
+            elements.statusMessage.classList.add(bgColor, textColor);
+            elements.statusMessage.textContent = message;
+        }
 
-        // --- Utility Functions ---
-        function showStatus(message, isError = false) {
-            statusMessage.textContent = message;
-            statusMessage.className = `text-center text-sm font-medium p-3 rounded-lg ${isError ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`;
-            statusMessage.classList.remove('hidden');
+        function updateStatusBar(component, status, text, icon, colorClass) {
+            const iconEl = elements[`${component}Icon`];
+            const textEl = elements[`${component}Text`];
+            iconEl.innerHTML = icon;
+            textEl.textContent = text;
+            iconEl.className = `status-bar-icon ${colorClass}`;
         }
 
         function toggleButtonLoader(button, isLoading) {
@@ -124,148 +164,299 @@
                 if (loader) loader.remove();
             }
         }
+        
+        // --- Core Logic ---
+        
+        // 1. Real-time Clock
+        function startClock() {
+            setInterval(() => {
+                elements.clock.textContent = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            }, 1000);
+        }
 
-        // --- Main Initialization on Page Load ---
-        window.addEventListener('load', async () => {
-            initializeCamera();
-            fetchEmployeeData();
-        });
+        // 2. Network & Sync Status
+        function handleNetworkStatus() {
+            const update = () => {
+                if (navigator.onLine) {
+                    updateStatusBar('network', 'online', 'Online', icons.wifi, 'text-green-600');
+                    syncOfflineData();
+                } else {
+                    updateStatusBar('network', 'offline', 'Offline', icons.wifiOff, 'text-red-600');
+                    showStatus('You are offline. Attendance will be saved locally.', 'warning');
+                }
+            };
+            update();
+            window.addEventListener('online', update);
+            window.addEventListener('offline', update);
+        }
 
-        // --- Camera Handling (FIXED) ---
+        function updateSyncStatus() {
+            const pendingCount = (JSON.parse(localStorage.getItem('pending_attendance')) || []).length;
+            if (pendingCount > 0) {
+                updateStatusBar('sync', 'pending', `${pendingCount} Pending`, icons.sync, 'text-yellow-600 animate-spin');
+            } else {
+                updateStatusBar('sync', 'synced', 'Synced', icons.cloudCheck, 'text-green-600');
+            }
+        }
+
+        // 3. Camera Handling
         async function initializeCamera() {
             if (!navigator.mediaDevices?.getUserMedia) {
-                showStatus('Error: Camera not supported.', true);
+                updateStatusBar('camera', 'error', 'No Camera', icons.cameraOff, 'text-red-600');
                 return;
             }
             try {
-                // Get list of all video cameras
                 const devices = await navigator.mediaDevices.enumerateDevices();
-                videoDevices = devices.filter(device => device.kind === 'videoinput');
-                
-                // Show switch button only if there are multiple cameras
-                if (videoDevices.length > 1) {
-                    switchCameraBtn.classList.remove('hidden');
-                }
-                
-                // Start the camera stream
+                state.videoDevices = devices.filter(d => d.kind === 'videoinput');
+                if (state.videoDevices.length > 1) elements.switchCameraBtn.classList.remove('hidden');
                 await startStream();
             } catch (error) {
-                showStatus('Error: Could not access camera.', true);
-                console.error("Camera initialization error:", error);
+                updateStatusBar('camera', 'error', 'Permission Denied', icons.cameraOff, 'text-red-600');
             }
         }
 
         async function startStream() {
-            // Stop any existing stream
-            if (currentStream) {
-                currentStream.getTracks().forEach(track => track.stop());
+            if (state.currentStream) {
+                state.currentStream.getTracks().forEach(track => track.stop());
             }
-            // Set constraints for the selected camera
-            const constraints = {
-                video: { deviceId: videoDevices.length ? videoDevices[currentDeviceIndex].deviceId : undefined }
-            };
+            const constraints = { video: { deviceId: state.videoDevices.length ? state.videoDevices[state.currentDeviceIndex].deviceId : undefined } };
             try {
-                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-                video.srcObject = currentStream;
-                video.onloadedmetadata = () => showStatus('Camera ready.', false);
+                state.currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                elements.video.srcObject = state.currentStream;
+                await elements.video.play();
+                updateStatusBar('camera', 'ready', 'Ready', icons.camera, 'text-green-600');
+                checkTorchSupport();
             } catch (error) {
-                showStatus('Error: Could not start camera.', true);
-                console.error("Camera stream error:", error);
+                updateStatusBar('camera', 'error', 'Error', icons.cameraOff, 'text-red-600');
             }
         }
 
-        async function switchCamera() {
-            // Move to the next camera in the list
-            currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
-            await startStream();
+        function checkTorchSupport() {
+            const track = state.currentStream.getVideoTracks()[0];
+            const capabilities = track.getCapabilities();
+            state.isTorchSupported = !!capabilities.torch;
+            if (state.isTorchSupported) {
+                elements.torchBtn.classList.remove('hidden');
+                elements.torchBtn.innerHTML = icons.torchOff;
+            } else {
+                elements.torchBtn.classList.add('hidden');
+            }
         }
 
-        // --- Data and Business Logic ---
+        async function toggleTorch() {
+            if (!state.isTorchSupported) return;
+            const track = state.currentStream.getVideoTracks()[0];
+            state.isTorchOn = !state.isTorchOn;
+            await track.applyConstraints({ advanced: [{ torch: state.isTorchOn }] });
+            elements.torchBtn.innerHTML = state.isTorchOn ? icons.torchOn : icons.torchOff;
+        }
+
+        // 4. Data Handling
         async function fetchEmployeeData() {
-            if (GAS_URL === 'PASTE_YOUR_COPIED_WEB_APP_URL_HERE') {
-                showStatus("Configuration Error: Google Apps Script URL is missing.", true);
-                empIdInput.placeholder = 'Config Error!'; return;
+            // Try to load from cache first
+            const cachedData = localStorage.getItem('employee_database');
+            if (cachedData) {
+                state.employeeDatabase = JSON.parse(cachedData);
+                enableInputs();
             }
+            
+            if (!navigator.onLine) {
+                if(!cachedData) showStatus('Offline and no cached data available.', 'error');
+                return;
+            }
+
             try {
-                const response = await fetch(GAS_URL + "?action=getEmployees");
-                if (!response.ok) throw new Error(`Server error: ${response.statusText}`);
-                employeeDatabase = await response.json();
-                empIdInput.disabled = false; empIdInput.placeholder = 'e.g., EMP001';
-                inBtn.disabled = false; outBtn.disabled = false;
-                showStatus('System Ready. Please enter your Employee ID.', false);
+                const response = await networkRequest(state.GAS_URL + "?action=getEmployees");
+                state.employeeDatabase = await response.json();
+                localStorage.setItem('employee_database', JSON.stringify(state.employeeDatabase));
+                enableInputs();
             } catch (error) {
-                showStatus(`Error: Could not load data. ${error.message}`, true);
-                empIdInput.placeholder = 'Loading failed';
+                showStatus(error.message, 'error');
+                if (!cachedData) elements.empIdInput.placeholder = 'Loading failed';
             }
+        }
+
+        function enableInputs() {
+            elements.empIdInput.disabled = false;
+            elements.empIdInput.placeholder = 'e.g., EMP001';
+            elements.inBtn.disabled = false;
+            elements.outBtn.disabled = false;
+        }
+
+        function handleIdInput() {
+            const empId = elements.empIdInput.value.trim().toUpperCase();
+            if (!empId) return;
+            const employee = state.employeeDatabase[empId];
+            if (employee) {
+                elements.nameInput.value = employee.name;
+                showStatus('Employee found. Ready to mark attendance.', 'info');
+                elements.inBtn.focus();
+            } else {
+                elements.nameInput.value = '';
+                showStatus('Employee ID not found.', 'error');
+            }
+        }
+
+        // 5. Attendance Marking & Offline Sync
+        async function markAttendance(status) {
+            const empId = elements.empIdInput.value.trim().toUpperCase();
+            const name = elements.nameInput.value.trim();
+            if (!empId || !name) {
+                showStatus('Please enter a valid Employee ID.', 'warning');
+                elements.empIdInput.focus();
+                return;
+            }
+            
+            const buttonToLoad = (status === 'IN') ? elements.inBtn : elements.outBtn;
+            toggleButtonLoader(buttonToLoad, true);
+
+            // Capture photo with timestamp overlay
+            const context = elements.canvas.getContext('2d');
+            elements.canvas.width = elements.video.videoWidth;
+            elements.canvas.height = elements.video.videoHeight;
+            context.drawImage(elements.video, 0, 0, elements.canvas.width, elements.canvas.height);
+            
+            const timestamp = new Date();
+            const timestampText = timestamp.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+            context.font = '24px Inter';
+            context.fillStyle = 'white';
+            context.strokeStyle = 'black';
+            context.lineWidth = 4;
+            context.strokeText(timestampText, 20, elements.canvas.height - 20);
+            context.fillText(timestampText, 20, elements.canvas.height - 20);
+            
+            const imageData = elements.canvas.toDataURL('image/jpeg', 0.9);
+
+            const dataToSend = {
+                id: `att_${Date.now()}`, // Unique ID for offline storage
+                action: 'markAttendance', empId, name,
+                imageData: imageData.split(',')[1],
+                status, timestamp: timestamp.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+            };
+
+            if (navigator.onLine) {
+                try {
+                    const response = await networkRequest(state.GAS_URL, {
+                        method: 'POST',
+                        body: JSON.stringify(dataToSend)
+                    });
+                    const result = await response.json();
+                    if (result.status !== 'success') throw new Error(result.message);
+                    showStatus(`Attendance marked as "${status}" successfully!`, 'success');
+                    resetForm();
+                } catch (error) {
+                    showStatus(`Online submission failed: ${error.message}. Saving locally.`, 'warning');
+                    saveOffline(dataToSend);
+                }
+            } else {
+                saveOffline(dataToSend);
+            }
+            
+            toggleButtonLoader(buttonToLoad, false);
+        }
+
+        function saveOffline(data) {
+            const queue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
+            queue.push(data);
+            localStorage.setItem('pending_attendance', JSON.stringify(queue));
+            showStatus('Offline. Attendance saved locally.', 'info');
+            updateSyncStatus();
+            resetForm();
+        }
+
+        async function syncOfflineData() {
+            const queue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
+            if (queue.length === 0) return;
+
+            updateStatusBar('sync', 'syncing', `Syncing ${queue.length}`, icons.sync, 'text-blue-600 animate-spin');
+            
+            for (const data of queue) {
+                try {
+                    const response = await networkRequest(state.GAS_URL, {
+                        method: 'POST',
+                        body: JSON.stringify(data)
+                    });
+                    const result = await response.json();
+                    if (result.status !== 'success') throw new Error(result.message);
+                    
+                    // Remove from queue on success
+                    const currentQueue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
+                    const newQueue = currentQueue.filter(item => item.id !== data.id);
+                    localStorage.setItem('pending_attendance', JSON.stringify(newQueue));
+                } catch (error) {
+                    console.error('Failed to sync item:', data.id, error);
+                    // Keep item in queue to retry later
+                }
+            }
+            updateSyncStatus();
         }
         
-        function handleIdInput() {
-            const empId = empIdInput.value.trim().toUpperCase();
-            if (!empId) return;
-            const employee = employeeDatabase[empId];
-            if (employee) {
-                nameInput.value = employee.name;
-                departmentInput.value = employee.department;
-                showStatus('Employee found. Ready to mark attendance.', false);
-            } else {
-                nameInput.value = ''; departmentInput.value = '';
-                showStatus('Employee ID not found.', true);
-            }
+        function resetForm() {
+            elements.empIdInput.value = '';
+            elements.nameInput.value = '';
+            elements.empIdInput.focus();
         }
 
-        async function markAttendance(status) {
-            const empId = empIdInput.value.trim().toUpperCase();
-            const name = nameInput.value.trim();
-            if (!empId || !name) {
-                showStatus('Please enter a valid Employee ID.', true); empIdInput.focus(); return;
-            }
-            const buttonToLoad = (status === 'IN') ? inBtn : outBtn;
-            toggleButtonLoader(buttonToLoad, true);
-            inBtn.disabled = true; outBtn.disabled = true;
-            try {
-                const context = canvas.getContext('2d');
-                canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-                context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const imageData = canvas.toDataURL('image/jpeg', 0.9);
-                const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
-                const locationType = document.querySelector('input[name="location-type"]:checked').value;
-                let locationData = { latitude: 'Not Available', longitude: 'Not Available' };
-                try {
-                    const position = await new Promise((resolve, reject) => { navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 }); });
-                    locationData = { latitude: position.coords.latitude, longitude: position.coords.longitude };
-                } catch (geoError) { console.warn("Geolocation error:", geoError); }
-                const dataToSend = { action: 'markAttendance', empId, name, locationType, imageData: imageData.split(',')[1], department: departmentInput.value, status, timestamp, latitude: locationData.latitude, longitude: locationData.longitude };
-                const response = await fetch(GAS_URL, { method: 'POST', redirect: "follow", body: JSON.stringify(dataToSend), headers: { "Content-Type": "text/plain;charset=utf-8" } });
-                const result = await response.json();
-                if (result.status === 'success') {
-                    showStatus(`Attendance marked as "${status}" successfully!`, false);
-                    empIdInput.value = ''; nameInput.value = ''; departmentInput.value = '';
-                } else { throw new Error(result.message || 'Unknown server error.'); }
-            } catch (error) {
-                console.error("Submission Error:", error);
-                showStatus(`An error occurred: ${error.message}. Please try again.`, true);
-            } finally {
-                toggleButtonLoader(buttonToLoad, false);
-                inBtn.disabled = false; outBtn.disabled = false;
-            }
+        // 6. Network Request with Timeout
+        async function networkRequest(url, options = {}, timeout = 8000) {
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeout);
+            
+            const response = await fetch(url, {
+                ...options,
+                signal: controller.signal,
+                redirect: "follow",
+                headers: { "Content-Type": "text/plain;charset=utf-8" }
+            });
+
+            clearTimeout(id);
+            if (!response.ok) throw new Error(`Network error: ${response.status} ${response.statusText}`);
+            return response;
         }
 
         // --- Event Listeners ---
-        inBtn.addEventListener('click', () => markAttendance('IN'));
-        outBtn.addEventListener('click', () => markAttendance('OUT'));
-        empIdInput.addEventListener('blur', handleIdInput);
-        empIdInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                handleIdInput();
-            }
-        });
-        toggleLocationBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            const isHidden = locationOptionsDiv.classList.toggle('hidden');
-            e.target.textContent = isHidden ? 'Working from Outside?' : 'Hide Location Options';
-        });
-        switchCameraBtn.addEventListener('click', switchCamera);
+        function addEventListeners() {
+            elements.inBtn.addEventListener('click', () => markAttendance('IN'));
+            elements.outBtn.addEventListener('click', () => markAttendance('OUT'));
+            elements.empIdInput.addEventListener('blur', handleIdInput);
+            elements.empIdInput.addEventListener('keydown', e => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleIdInput();
+                }
+            });
+            document.addEventListener('keydown', e => {
+                if (e.ctrlKey && e.key.toLowerCase() === 'i') {
+                    e.preventDefault();
+                    elements.inBtn.click();
+                }
+                if (e.ctrlKey && e.key.toLowerCase() === 'o') {
+                    e.preventDefault();
+                    elements.outBtn.click();
+                }
+            });
+            elements.switchCameraBtn.addEventListener('click', async () => {
+                state.currentDeviceIndex = (state.currentDeviceIndex + 1) % state.videoDevices.length;
+                await startStream();
+            });
+            elements.torchBtn.addEventListener('click', toggleTorch);
+        }
+
+        // --- App Initialization ---
+        function init() {
+            // Set icons
+            elements.torchBtn.innerHTML = icons.torchOff;
+            elements.switchCameraBtn.innerHTML = icons.switchCamera;
+            
+            startClock();
+            handleNetworkStatus();
+            initializeCamera();
+            fetchEmployeeData();
+            addEventListeners();
+            updateSyncStatus();
+        }
+        
+        init();
 
     </script>
 </body>
