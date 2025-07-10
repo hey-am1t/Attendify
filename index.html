@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Attendance - Complete</title>
+    <title>Smart Attendance</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,6 +22,7 @@
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
         .torch-on { box-shadow: 0 0 15px 5px rgba(255, 255, 0, 0.7); background-color: rgba(255, 255, 150, 0.6) !important; }
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(4px); }
+        #status-sync:hover { cursor: pointer; background-color: rgba(0,0,0,0.05); border-radius: 0.5rem; }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
@@ -33,13 +34,12 @@
             <div id="real-time-clock" class="text-sm text-gray-500 font-medium">--:--:--</div>
         </header>
 
-        <!-- Modern Status Bar -->
         <div class="flex justify-around items-center bg-slate-100 rounded-lg p-2.5 text-sm font-bold text-gray-700">
             <div class="flex items-center justify-center w-1/3" title="Network Status"><span id="network-text">--</span></div>
             <div class="border-l border-gray-300 h-6"></div>
             <div class="flex items-center justify-center w-1/3" title="Camera Status"><span id="camera-text">--</span></div>
             <div class="border-l border-gray-300 h-6"></div>
-            <div class="flex items-center justify-center w-1/3" title="Sync Status"><span id="sync-text">--</span></div>
+            <div id="status-sync" class="flex items-center justify-center w-1/3 p-1" title="Click to view pending syncs"><span id="sync-text">--</span></div>
         </div>
 
         <main id="app-content" class="space-y-4">
@@ -87,7 +87,7 @@
         </main>
         
         <footer class="text-center pt-4 border-t border-gray-200">
-            <p class="text-xs text-gray-400">Developed by Amit Kumar | V14.0</p>
+            <p class="text-xs text-gray-400">Developed by Amit Kumar | V15.0</p>
         </footer>
     </div>
 
@@ -100,6 +100,18 @@
                 <button id="cancel-btn" class="w-full bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg btn">Cancel</button>
                 <button id="confirm-btn" class="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg btn">Confirm</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Pending Syncs Modal -->
+    <div id="pending-sync-modal" class="modal-overlay hidden fade-in">
+        <div class="bg-white w-full max-w-sm rounded-lg shadow-xl p-6 space-y-4">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-bold text-gray-800">Pending Syncs</h3>
+                <button id="close-sync-modal-btn" class="text-2xl font-light">&times;</button>
+            </div>
+            <p class="text-xs text-gray-500">These records will be synced automatically when you are online.</p>
+            <ul id="pending-list" class="h-48 overflow-y-auto border rounded-lg bg-gray-50 p-2 space-y-1"></ul>
         </div>
     </div>
 
@@ -128,14 +140,23 @@
             modalBody: document.getElementById('modal-body'),
             confirmBtn: document.getElementById('confirm-btn'),
             cancelBtn: document.getElementById('cancel-btn'),
+            statusSync: document.getElementById('status-sync'),
+            pendingSyncModal: document.getElementById('pending-sync-modal'),
+            closeSyncModalBtn: document.getElementById('close-sync-modal-btn'),
+            pendingList: document.getElementById('pending-list'),
         };
 
         // --- App State ---
         const state = {
-            GAS_URL: 'https://script.google.com/macros/s/AKfycbzm3CmnWjmqzyjSW03sBjaTaP2REDtTIvvbp-tUX8ZP9S8ORpT-5dbzpZUl8R7mwPzH/exec',
-            employeeDatabase: {}, videoDevices: [], currentDeviceIndex: 0,
-            currentStream: null, isTorchSupported: false, isTorchOn: false,
+            GAS_URL: 'PASTE_YOUR_COPIED_WEB_APP_URL_HERE',
+            employeeDatabase: {},
+            videoDevices: [],
+            currentDeviceIndex: 0,
+            currentStream: null,
+            isTorchSupported: false,
+            isTorchOn: false,
             pendingAction: null,
+            maxRetries: 2,
         };
 
         // --- Icons ---
@@ -197,12 +218,11 @@
                     const serverTime = await getServerTime();
                     timeOffset = serverTime.getTime() - Date.now();
                 } catch (e) {
-                    timeOffset = 0; // Fallback to local time if API fails
+                    timeOffset = 0;
                 }
             }
             syncTime();
-            setInterval(syncTime, 30 * 60 * 1000); // Sync every 30 minutes
-
+            setInterval(syncTime, 30 * 60 * 1000);
             setInterval(() => {
                 const correctedTime = new Date(Date.now() + timeOffset);
                 elements.clock.textContent = correctedTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -380,7 +400,6 @@
             }
         }
 
-        // --- Confirmation Modal Logic ---
         function openConfirmationModal(status) {
             const empId = elements.empIdInput.value.trim().toUpperCase();
             const name = elements.nameInput.value.trim();
@@ -410,7 +429,7 @@
             const buttonToLoad = (status === 'IN') ? elements.inBtn : elements.outBtn;
             toggleButtonLoader(buttonToLoad, true);
 
-            let dataToSend; // Define here to be available in catch block
+            let dataToSend;
 
             try {
                 const serverTime = await getServerTime();
@@ -426,7 +445,7 @@
                 context.strokeText(timestampText, 20, elements.canvas.height - 20);
                 context.fillText(timestampText, 20, elements.canvas.height - 20);
                 
-                const imageData = elements.canvas.toDataURL('image/jpeg', 0.75); // Photo Compression
+                const imageData = elements.canvas.toDataURL('image/jpeg', 0.75);
                 
                 const locationType = document.querySelector('input[name="location-type"]:checked').value;
                 dataToSend = {
@@ -441,19 +460,11 @@
                     timestamp: serverTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
                 };
 
-                if (navigator.onLine) {
-                    const response = await networkRequest(state.GAS_URL, { method: 'POST', body: JSON.stringify(dataToSend) });
-                    const result = await response.json();
-                    if (result.status !== 'success') throw new Error(result.message);
-                    showStatus(`Attendance marked as "${status}" successfully!`, 'success');
-                    resetForm();
-                } else {
-                    saveOffline(dataToSend);
-                }
+                await submitDataWithRetry(dataToSend);
                 
             } catch (error) {
                 showStatus(`An error occurred: ${error.message}. Saving locally.`, 'warning');
-                if (!dataToSend) { // If error happened before dataToSend was created
+                if (!dataToSend) {
                      dataToSend = {
                         id: `att_${Date.now()}`, action: 'markAttendance',
                         empId: elements.empIdInput.value.trim().toUpperCase(),
@@ -467,6 +478,29 @@
                 saveOffline(dataToSend);
             } finally {
                 toggleButtonLoader(buttonToLoad, false);
+            }
+        }
+
+        async function submitDataWithRetry(data, attempt = 1) {
+            if (!navigator.onLine) {
+                saveOffline(data);
+                return;
+            }
+            try {
+                const response = await networkRequest(state.GAS_URL, { method: 'POST', body: JSON.stringify(data) });
+                const result = await response.json();
+                if (result.status !== 'success') throw new Error(result.message);
+                showStatus(`Attendance marked as "${data.status}" successfully!`, 'success');
+                resetForm();
+            } catch (error) {
+                if (attempt <= state.maxRetries) {
+                    showStatus(`Network failed. Retrying... (${attempt}/${state.maxRetries})`, 'warning');
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    await submitDataWithRetry(data, attempt + 1);
+                } else {
+                    showStatus(`Online submission failed after ${state.maxRetries} retries. Saving locally.`, 'error');
+                    saveOffline(data);
+                }
             }
         }
 
@@ -500,7 +534,26 @@
             return response;
         }
 
-        // --- Event Listeners ---
+        function showPendingSyncs() {
+            const queue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
+            elements.pendingList.innerHTML = '';
+
+            if (queue.length === 0) {
+                elements.pendingList.innerHTML = `<li class="text-center text-gray-500 p-4">No pending records.</li>`;
+            } else {
+                queue.forEach(item => {
+                    const li = document.createElement('li');
+                    li.className = 'p-2 bg-white rounded shadow-sm text-sm';
+                    li.innerHTML = `
+                        <div class="font-bold">${item.name} (${item.empId})</div>
+                        <div class="text-xs text-gray-600">${item.status} at ${new Date(item.timestamp).toLocaleTimeString()}</div>
+                    `;
+                    elements.pendingList.appendChild(li);
+                });
+            }
+            elements.pendingSyncModal.classList.remove('hidden');
+        }
+
         function addEventListeners() {
             elements.inBtn.addEventListener('click', () => openConfirmationModal('IN'));
             elements.outBtn.addEventListener('click', () => openConfirmationModal('OUT'));
@@ -532,9 +585,11 @@
                 const isHidden = elements.locationOptionsDiv.classList.toggle('hidden');
                 e.target.textContent = isHidden ? 'Working from Outside?' : 'Hide Location Options';
             });
+
+            elements.statusSync.addEventListener('click', showPendingSyncs);
+            elements.closeSyncModalBtn.addEventListener('click', () => elements.pendingSyncModal.classList.add('hidden'));
         }
 
-        // --- App Initialization ---
         function init() {
             elements.torchBtn.innerHTML = icons.torchOff;
             elements.switchCameraBtn.innerHTML = icons.switchCamera;
