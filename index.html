@@ -536,28 +536,36 @@
         }
 
         function showPendingSyncs() {
-            const queue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
-            elements.pendingList.innerHTML = '';
-            if (queue.length === 0) {
-                elements.pendingList.innerHTML = `<li class="text-center text-gray-500 p-4">No pending records.</li>`;
-            } else {
-                queue.forEach(item => {
-                    const li = document.createElement('li');
-                    li.className = 'p-2 bg-white rounded shadow-sm text-sm flex justify-between items-center';
-                    li.innerHTML = `
-                        <div>
-                            <div class="font-bold">${item.name} (${item.empId})</div>
-                            <div class="text-xs text-gray-600">${item.status} at ${new Date(item.timestamp).toLocaleTimeString()}</div>
-                        </div>
-                        <button data-id="${item.id}" class="retry-btn text-xs bg-indigo-100 text-indigo-700 font-semibold px-2 py-1 rounded-md btn">Retry</button>
-                    `;
-                    elements.pendingList.appendChild(li);
-                });
-            }
-            elements.pendingSyncModal.classList.remove('hidden');
-        }
+    const queue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
+    elements.pendingList.innerHTML = ''; // Clear previous list
 
-        async function retrySyncItem(event) {
+    if (queue.length === 0) {
+        elements.pendingList.innerHTML = `<li class="text-center text-gray-500 p-4">No pending records.</li>`;
+    } else {
+        queue.forEach(item => {
+            const li = document.createElement('li');
+            li.className = 'p-2 bg-white rounded shadow-sm text-sm flex justify-between items-center';
+            // Added a "Delete" button next to the "Retry" button
+            li.innerHTML = `
+                <div>
+                    <div class="font-bold">${item.name} (${item.empId})</div>
+                    <div class="text-xs text-gray-600">${item.status} at ${new Date(item.timestamp).toLocaleTimeString()}</div>
+                </div>
+                <div class="flex gap-2">
+                    <button data-id="${item.id}" class="retry-btn text-xs bg-indigo-100 text-indigo-700 font-semibold px-2 py-1 rounded-md btn">Retry</button>
+                    <button data-id="${item.id}" class="delete-btn text-xs bg-red-100 text-red-700 font-semibold px-2 py-1 rounded-md btn">Delete</button>
+                </div>
+            `;
+            elements.pendingList.appendChild(li);
+        });
+    }
+    elements.pendingSyncModal.classList.remove('hidden');
+}
+
+        async function retrySyncItem(retryButton) {
+    const itemId = retryButton.dataset.id;
+    // ... (baaki poora function waisa hi rahega)
+} {
             if (!event.target.classList.contains('retry-btn')) return;
             const itemId = event.target.dataset.id;
             const queue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
@@ -584,7 +592,19 @@
                 retryButton.textContent = 'Retry';
             }
         }
-
+function deleteSyncItem(itemId) {
+    if (!confirm('Are you sure you want to delete this pending record?')) {
+        return;
+    }
+    
+    let queue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
+    const newQueue = queue.filter(item => item.id !== itemId);
+    localStorage.setItem('pending_attendance', JSON.stringify(newQueue));
+    
+    showStatus('Pending record deleted.', 'success');
+    showPendingSyncs(); // Refresh the modal list
+    syncOfflineData(); // Update the main status bar
+}
         function addEventListeners() {
             elements.inBtn.addEventListener('click', () => openConfirmationModal('IN'));
             elements.outBtn.addEventListener('click', () => openConfirmationModal('OUT'));
@@ -608,7 +628,16 @@
             });
             elements.statusSync.addEventListener('click', showPendingSyncs);
             elements.closeSyncModalBtn.addEventListener('click', () => elements.pendingSyncModal.classList.add('hidden'));
-            elements.pendingList.addEventListener('click', retrySyncItem);
+            // Replace the old pendingList listener with this new one
+elements.pendingList.addEventListener('click', (event) => {
+    const target = event.target;
+    if (target.classList.contains('retry-btn')) {
+        retrySyncItem(target);
+    } else if (target.classList.contains('delete-btn')) {
+        const itemId = target.dataset.id;
+        deleteSyncItem(itemId);
+    }
+});
         }
 
         function init() {
