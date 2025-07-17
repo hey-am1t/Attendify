@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Attendance - Final</title>
+    <title>Attendify</title>
+    <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,7 +32,7 @@
     <div class="w-full max-w-md mx-auto bg-white rounded-xl shadow-2xl p-6 md:p-8 space-y-5">
         
         <header class="text-center relative">
-            <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Smart Attendance</h1>
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Attendify</h1>
             <div id="real-time-clock" class="text-sm text-gray-500 font-medium">--:--:--</div>
         </header>
 
@@ -646,7 +647,17 @@
             fetchEmployeeData();
             addEventListeners();
         }
-        
+        if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/serviceworker.js')
+                        .then(registration => {
+                            console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                        })
+                        .catch(err => {
+                            console.log('ServiceWorker registration failed: ', err);
+                        });
+                });
+            }
         init();
 
     </script>
