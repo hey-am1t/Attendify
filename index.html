@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+      <!-- PWA Specific Meta Tags -->
+    <meta name="theme-color" content="#4f46e5"/>
+    <meta name="description" content="A smart attendance system with camera capture and offline capabilities."/>
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+
+    <!-- Link to Manifest File -->
+    <link rel="manifest" href="manifest.json">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Attendify By Amit Kumar</title>
@@ -653,7 +660,19 @@
             fetchEmployeeData();
             addEventListeners();
         }
-        
+         // --- YEH NAYA CODE YAHAN PASTE KAREIN ---
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/serviceworker.js')
+                        .then(registration => {
+                            console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                        })
+                        .catch(err => {
+                            console.log('ServiceWorker registration failed: ', err);
+                        });
+                });
+            }
+            // --- YAHAN TAK ---
         init();
 
     </script>
