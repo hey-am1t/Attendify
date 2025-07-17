@@ -1,4 +1,4 @@
-const CACHE_NAME = 'smart-attendance-cache-v1';
+const CACHE_NAME = 'attendify-v1';
 // Files to cache. Note: We can't cache the Google Fonts URL directly in this simple setup.
 // The browser will cache it on its own. We will cache our main page and icons.
 const urlsToCache = [
