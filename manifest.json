@@ -1,6 +1,6 @@
 {
-  "name": "Smart Attendance System",
-  "short_name": "Attendance",
+  "name": "Attendify",
+  "short_name": "Attendify",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#ffffff",
