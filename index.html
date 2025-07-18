@@ -660,8 +660,8 @@
             fetchEmployeeData();
             addEventListeners();
         }
-         // --- YEH NAYA CODE YAHAN PASTE KAREIN ---
-            if ('serviceWorker' in navigator) {
+        init();
+if ('serviceWorker' in navigator) {
                 window.addEventListener('load', () => {
                     navigator.serviceWorker.register('/serviceworker.js')
                         .then(registration => {
@@ -672,9 +672,6 @@
                         });
                 });
             }
-            // --- YAHAN TAK ---
-        init();
-
     </script>
 </body>
 </html>
