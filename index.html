@@ -296,35 +296,78 @@
                  updateStatusBar('sync', `Pending: ${remaining}`, 'text-yellow-600');
             }
         }
-        
         async function initializeCamera() {
-            updateStatusBar('camera', 'Starting...', 'text-yellow-600');
-            elements.videoLoader.classList.remove('hidden');
-            elements.video.classList.add('hidden');
-            
-            if (!navigator.mediaDevices?.getUserMedia) {
-                updateStatusBar('camera', 'No Camera', 'text-red-600');
-                showStatus('Error: This device does not have a camera.', 'error');
-                elements.videoLoader.classList.add('hidden');
-                return;
-            }
-            try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                state.videoDevices = devices.filter(d => d.kind === 'videoinput');
-                if (state.videoDevices.length > 1) elements.switchCameraBtn.classList.remove('hidden');
-                await startStream();
-            } catch (error) {
-                elements.videoLoader.classList.add('hidden');
-                if (error.name === "NotAllowedError") {
-                    updateStatusBar('camera', 'Denied', 'text-red-600');
-                    showStatus('Error: Camera permission was denied. Please allow camera access in your browser settings.', 'error');
-                } else {
-                    updateStatusBar('camera', 'Error', 'text-red-600');
-                    showStatus('Error: Could not access camera. It might be in use by another app.', 'error');
-                }
-            }
+    updateStatusBar('camera', 'Initializing...', 'text-yellow-600');
+    elements.videoLoader.classList.remove('hidden');
+    elements.video.classList.add('hidden');
+
+    // 1. Basic Camera Availability Check
+    if (!navigator.mediaDevices?.getUserMedia) {
+        handleCameraError('This device/browser doesn\'t support camera access');
+        return;
+    }
+
+    try {
+        // 2. Device Enumeration with Timeout
+        const devices = await Promise.race([
+            navigator.mediaDevices.enumerateDevices(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Device enumeration timeout')), 3000))
+        ]);
+
+        state.videoDevices = devices.filter(d => d.kind === 'videoinput');
+        
+        // 3. Multi-camera UI Handling
+        if (state.videoDevices.length > 1) {
+            elements.switchCameraBtn.classList.remove('hidden');
+        } else if (state.videoDevices.length === 0) {
+            handleCameraError('No cameras found');
+            return;
         }
 
+        // 4. Stream Initialization
+        await startStream();
+        
+        // 5. Success State
+        elements.videoLoader.classList.add('hidden');
+        elements.video.classList.remove('hidden');
+        updateStatusBar('camera', 'Ready', 'text-green-600');
+        
+    } catch (error) {
+        handleCameraError(error);
+    }
+}
+
+function handleCameraError(error) {
+    elements.videoLoader.classList.add('hidden');
+    
+    const errorMap = {
+        'NotAllowedError': {
+            status: 'Permission Denied',
+            message: 'Please enable camera permissions in browser settings'
+        },
+        'NotFoundError': {
+            status: 'No Camera',
+            message: 'No camera device found'
+        },
+        'OverconstrainedError': {
+            status: 'Unsupported',
+            message: 'Camera doesn\'t support required mode'
+        },
+        'default': {
+            status: 'Error',
+            message: 'Camera access failed: ' + (error.message || 'Unknown error')
+        }
+    };
+
+    const { status, message } = errorMap[error.name] || errorMap.default;
+    
+    updateStatusBar('camera', status, 'text-red-600');
+    showStatus(`Camera Error: ${message}`, 'error');
+    
+    // Fallback UI state
+    elements.video.classList.add('hidden');
+    elements.switchCameraBtn.classList.add('hidden');
+}
         async function startStream() {
             if (state.currentStream) {
                 state.currentStream.getTracks().forEach(track => track.stop());
