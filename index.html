@@ -479,70 +479,72 @@ function handleCameraError(error) {
             elements.modal.classList.add('hidden');
             state.pendingAction = null;
         }
-
-        async function executeAttendance() {
-            const status = state.pendingAction;
-            if (!status) return;
-            
-            closeConfirmationModal();
+ async function markAttendance(status) {
+            const empId = elements.empIdInput.value.trim().toUpperCase();
+            const name = elements.nameInput.value.trim();
+            if (!empId || !name) {
+                showStatus('Please enter a valid Employee ID first.', 'warning');
+                return;
+            }
+            // Naya check: Agar camera nahi chal raha to attendance na lein
+            if (!state.currentStream || !state.currentStream.active) {
+                showStatus('Camera is not working. Cannot mark attendance.', 'error');
+                return;
+            }
             
             const buttonToLoad = (status === 'IN') ? elements.inBtn : elements.outBtn;
-            toggleButtonLoader(buttonToLoad, true, status);
-
-            let dataToSend;
+            toggleButtonLoader(buttonToLoad, true);
 
             try {
-                const serverTime = await getServerTime();
                 const context = elements.canvas.getContext('2d');
                 elements.canvas.width = elements.video.videoWidth;
                 elements.canvas.height = elements.video.videoHeight;
                 context.drawImage(elements.video, 0, 0, elements.canvas.width, elements.canvas.height);
-                const timestampText = serverTime.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
-                context.font = '24px Inter';
-                context.fillStyle = 'white';
-                context.strokeStyle = 'black';
-                context.lineWidth = 4;
-                context.strokeText(timestampText, 20, elements.canvas.height - 20);
-                context.fillText(timestampText, 20, elements.canvas.height - 20);
-                
                 const imageData = elements.canvas.toDataURL('image/jpeg', 0.75);
                 
-                const locationType = document.querySelector('input[name="location-type"]:checked').value;
-                dataToSend = {
-                    id: `att_${Date.now()}`,
+                let locationData = { latitude: 'Not Available', longitude: 'Not Available' };
+                try {
+                    const position = await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
+                    });
+                    locationData = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+                } catch (geoError) {
+                    console.warn("Geolocation could not be fetched:", geoError.message);
+                    showStatus("Could not get location, but proceeding.", "warning");
+                }
+
+                const dataToSend = {
                     action: 'markAttendance',
-                    empId: elements.empIdInput.value.trim().toUpperCase(),
-                    name: elements.nameInput.value.trim(),
-                    department: elements.departmentInput.value,
-                    designation: elements.designationInput.value,
-                    locationType,
-                    imageData: imageData.split(',')[1],
+                    empId, name,
+                    department: state.employeeDatabase[empId]?.department || 'N/A',
+                    designation: state.employeeDatabase[empId]?.designation || 'N/A',
                     status,
-                    timestamp: serverTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+                    timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+                    imageData: imageData.split(',')[1],
+                    latitude: locationData.latitude, // Location data ab bheja ja raha hai
+                    longitude: locationData.longitude // Location data ab bheja ja raha hai
                 };
 
-                await submitDataWithRetry(dataToSend);
+                const response = await fetch(state.GAS_URL, {
+                    method: 'POST',
+                    redirect: "follow",
+                    body: JSON.stringify(dataToSend),
+                    headers: { "Content-Type": "text/plain;charset=utf-8" }
+                });
+
+                const result = await response.json();
+                if (result.status !== 'success') throw new Error(result.message);
                 
+                showStatus(`Attendance marked as "${status}" successfully!`, 'success');
+                elements.empIdInput.value = '';
+                elements.nameInput.value = '';
+
             } catch (error) {
-                showStatus(`An error occurred: ${error.message}. Saving locally.`, 'warning');
-                if (!dataToSend) {
-                     dataToSend = {
-                        id: `att_${Date.now()}`, action: 'markAttendance',
-                        empId: elements.empIdInput.value.trim().toUpperCase(),
-                        name: elements.nameInput.value.trim(),
-                        department: elements.departmentInput.value,
-                        designation: elements.designationInput.value,
-                        locationType: document.querySelector('input[name="location-type"]:checked').value,
-                        imageData: "N/A", status,
-                        timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
-                    };
-                }
-                saveOffline(dataToSend);
+                showStatus(`Error: ${error.message}`, 'error');
             } finally {
-                toggleButtonLoader(buttonToLoad, false, status);
+                toggleButtonLoader(buttonToLoad, false);
             }
         }
-
         async function submitDataWithRetry(data, attempt = 1) {
             if (!navigator.onLine) {
                 saveOffline(data);
