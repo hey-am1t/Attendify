@@ -25,12 +25,12 @@
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(4px); }
         #status-sync:hover { cursor: pointer; background-color: rgba(0,0,0,0.05); border-radius: 0.5rem; }
     </style>
- <!-- PWA Specific Meta Tags -->
+     <!-- PWA Specific Meta Tags -->
     <meta name="theme-color" content="#4f46e5"/>
     <meta name="description" content="A smart attendance system with camera capture and offline capabilities."/>
     <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
 
-    <!-- Link to Manifest File -->
+        <!-- Link to Manifest File -->
     <link rel="manifest" href="manifest.json">
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
@@ -704,9 +704,7 @@ function handleCameraError(error) {
             initializeCamera();
             fetchEmployeeData();
             addEventListeners();
-        }
-        init();
-if ('serviceWorker' in navigator) {
+            if ('serviceWorker' in navigator) {
                 window.addEventListener('load', () => {
                     navigator.serviceWorker.register('/serviceworker.js')
                         .then(registration => {
@@ -717,6 +715,8 @@ if ('serviceWorker' in navigator) {
                         });
                 });
             }
+        }
+        init();
     </script>
 </body>
 </html>
