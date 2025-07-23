@@ -288,31 +288,68 @@
             }
         }
         
-        async function initializeCamera() {
+         async function initializeCamera() {
             updateStatusBar('camera', 'Starting...', 'text-yellow-600');
             elements.videoLoader.classList.remove('hidden');
             elements.video.classList.add('hidden');
-            
+
             if (!navigator.mediaDevices?.getUserMedia) {
-                updateStatusBar('camera', 'No Camera', 'text-red-600');
-                showStatus('Error: This device does not have a camera.', 'error');
+                updateStatusBar('camera', 'Unsupported', 'text-red-600');
+                showStatus('Error: Camera is not supported on this device/browser.', 'error');
                 elements.videoLoader.classList.add('hidden');
                 return;
             }
+
+            // Aam taur par mobile ke liye zaroori constraints
+            const constraints = {
+                video: {
+                    facingMode: 'user', // Front camera se shuru karein
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            };
+
             try {
+                // Pehle devices ki list lein
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 state.videoDevices = devices.filter(d => d.kind === 'videoinput');
-                if (state.videoDevices.length > 1) elements.switchCameraBtn.classList.remove('hidden');
-                await startStream();
+                if (state.videoDevices.length > 1) {
+                    elements.switchCameraBtn.classList.remove('hidden');
+                }
+
+                // Camera stream shuru karein
+                state.currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                elements.video.srcObject = state.currentStream;
+                
+                // Video ke poori tarah se taiyar hone ka intezar karein
+                elements.video.onloadedmetadata = () => {
+                    elements.video.play();
+                    elements.videoLoader.classList.add('hidden');
+                    elements.video.classList.remove('hidden');
+                    updateStatusBar('camera', 'Ready', 'text-green-600');
+                    checkTorchSupport();
+                };
+
             } catch (error) {
                 elements.videoLoader.classList.add('hidden');
-                if (error.name === "NotAllowedError") {
-                    updateStatusBar('camera', 'Denied', 'text-red-600');
-                    showStatus('Error: Camera permission was denied. Please allow camera access in your browser settings.', 'error');
-                } else {
-                    updateStatusBar('camera', 'Error', 'text-red-600');
-                    showStatus('Error: Could not access camera. It might be in use by another app.', 'error');
+                let errorMessage = `An unknown camera error occurred: ${error.name}`;
+                let statusText = 'Error';
+
+                // Alag-alag errors ke liye saaf message
+                if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+                    errorMessage = 'Error: Camera permission was denied. Please allow camera access in your browser settings.';
+                    statusText = 'Denied';
+                } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+                    errorMessage = 'Error: No camera was found on this device.';
+                    statusText = 'No Camera';
+                } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
+                    errorMessage = 'Error: The camera is already in use by another application.';
+                    statusText = 'In Use';
                 }
+                
+                updateStatusBar('camera', statusText, 'text-red-600');
+                showStatus(errorMessage, 'error');
+                console.error("Camera Error Details:", error); // Debugging ke liye
             }
         }
 
