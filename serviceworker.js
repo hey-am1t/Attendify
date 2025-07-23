@@ -1,6 +1,4 @@
 const CACHE_NAME = 'attendify-v16';
-// Files to cache. Note: We can't cache the Google Fonts URL directly in this simple setup.
-// The browser will cache it on its own. We will cache our main page and icons.
 const urlsToCache = [
   '/',
   '/index.html',
@@ -9,34 +7,54 @@ const urlsToCache = [
   '/icons/icon-512x512.png'
 ];
 
-// Install a service worker
 self.addEventListener('install', event => {
-  // Perform install steps
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(function(cache) {
+      .then(cache => {
         console.log('Opened cache');
         return cache.addAll(urlsToCache);
+      })
+      .catch(err => {
+        console.error('Cache installation failed:', err);
       })
   );
 });
 
-// Cache and return requests
 self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request)
-      .then(function(response) {
+      .then(response => {
         // Cache hit - return response
         if (response) {
           return response;
         }
-        return fetch(event.request);
-      }
-    )
+        // Clone the request because it's a stream that can only be consumed once
+        const fetchRequest = event.request.clone();
+        return fetch(fetchRequest)
+          .then(response => {
+            // Check if we received a valid response
+            if (!response || response.status !== 200 || response.type !== 'basic') {
+              return response;
+            }
+            // Clone the response for potential caching
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME)
+              .then(cache => {
+                cache.put(event.request, responseToCache);
+              });
+            return response;
+          })
+          .catch(() => {
+            // You could return a custom offline page here if desired
+            return new Response('Network error', {
+              status: 408,
+              statusText: 'Network error'
+            });
+          });
+      })
   );
 });
 
-// Update a service worker
 self.addEventListener('activate', event => {
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
