@@ -687,17 +687,17 @@
             initializeCamera();
             fetchEmployeeData();
             addEventListeners();
-            if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('serviceworker.js')
-                    .then(registration => {
-                        console.log('PWA ServiceWorker registration successful:', registration);
-                    })
-                    .catch(err => {
-                        console.error('PWA ServiceWorker registration failed:', err);
-                    });
-            });
-        }
+        if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/serviceworker.js')
+                        .then(registration => {
+                            console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                        })
+                        .catch(err => {
+                            console.log('ServiceWorker registration failed: ', err);
+                        });
+                });
+            }    
         }
         
         init();
