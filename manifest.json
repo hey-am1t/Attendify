@@ -1,11 +1,12 @@
 {
   "name": "Attendify by Amit Kumar",
   "short_name": "Attendify",
-  "start_url": ".",
+  "start_url": "/index.html",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#4f46e5",
-  "description": "A smart attendance system with camera capture and offline capabilities.",
+  "background_color": "#f3f4f6",
+  "theme_color": "#4338ca",
+  "description": "A smart, reliable attendance system with offline capabilities.",
   "icons": [
     {
       "src": "icons/icon-192x192.png",
@@ -16,6 +17,12 @@
       "src": "icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
