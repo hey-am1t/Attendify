@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-     <!-- PWA Specific Meta Tags -->
-    <meta name="theme-color" content="#4f46e5"/>
-    <meta name="description" content="A smart attendance system with camera capture and offline capabilities."/>
-    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    <!-- PWA Specific Meta Tags -->
+<meta name="theme-color" content="#4338ca"/>
+<link rel="apple-touch-icon" href="icons/icon-192x192.png">
     <title>Attendify By Amit Kumar</title>
     <!-- Link to Manifest File -->
-    <link rel="manifest" href="manifest.json">
+<link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -687,17 +686,17 @@
             initializeCamera();
             fetchEmployeeData();
             addEventListeners();
-        if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                    navigator.serviceWorker.register('/serviceworker.js')
-                        .then(registration => {
-                            console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                        })
-                        .catch(err => {
-                            console.log('ServiceWorker registration failed: ', err);
-                        });
-                });
-            }    
+           if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('serviceworker.js')
+                    .then(registration => {
+                        console.log('PWA ServiceWorker registration successful:', registration);
+                    })
+                    .catch(err => {
+                        console.error('PWA ServiceWorker registration failed:', err);
+                    });
+            });
+        }
         }
         
         init();
