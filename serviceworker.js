@@ -1,16 +1,10 @@
-/**
- * @fileoverview A more robust and modern service worker for the Smart Attendance PWA.
- * This version uses a "Stale-While-Revalidate" strategy for core assets
- * and a "Cache First" strategy for external, unchanging assets like fonts.
- * Author: Amit Kumar
- * Version: 2.0
- */
+const VERSION = 'v2'; // Update this to force cache refresh
+const CORE_CACHE_NAME = `smart-attendance-core-${VERSION}`;
+const DYNAMIC_CACHE_NAME = `smart-attendance-dynamic-${VERSION}`;
+const OFFLINE_URL = '/offline.html'; // Fallback page
 
-const CORE_CACHE_NAME = 'smart-attendance-core-v1';
-const DYNAMIC_CACHE_NAME = 'smart-attendance-dynamic-v1';
-
-// App Shell: The essential files for the app to work offline.
 const CORE_ASSETS = [
+  OFFLINE_URL,
   '/',
   '/index.html',
   '/manifest.json',
@@ -18,71 +12,60 @@ const CORE_ASSETS = [
   '/icons/icon-512x512.png'
 ];
 
-// 1. Install the service worker and cache the core assets.
+// Install + Cache Core Assets
 self.addEventListener('install', event => {
-  console.log('[Service Worker] Install');
   event.waitUntil(
-    caches.open(CORE_CACHE_NAME).then(cache => {
-      console.log('[Service Worker] Caching Core Assets');
-      return cache.addAll(CORE_ASSETS);
-    })
+    caches.open(CORE_CACHE_NAME)
+      .then(cache => cache.addAll(CORE_ASSETS))
+      .catch(err => console.error('Cache install failed:', err))
   );
-  self.skipWaiting(); // Activate the new service worker immediately.
+  self.skipWaiting();
 });
 
-// 2. Activate the service worker and clean up old caches.
+// Clean Old Caches
 self.addEventListener('activate', event => {
-  console.log('[Service Worker] Activate');
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
-          // Delete any cache that is not our current core or dynamic cache.
-          if (cacheName !== CORE_CACHE_NAME && cacheName !== DYNAMIC_CACHE_NAME) {
-            console.log('[Service Worker] Deleting old cache:', cacheName);
+          if (![CORE_CACHE_NAME, DYNAMIC_CACHE_NAME].includes(cacheName)) {
             return caches.delete(cacheName);
           }
         })
       );
     })
   );
-  return self.clients.claim(); // Take control of the page immediately.
+  self.clients.claim();
 });
 
-// 3. Intercept fetch requests to serve from cache or network.
+// Fetch Handling
 self.addEventListener('fetch', event => {
-  const url = new URL(event.request.url);
+  const { request } = event;
+  const url = new URL(request.url);
 
-  // Strategy 1: Stale-While-Revalidate for core assets (HTML, manifest).
-  // Serve from cache immediately for speed, then update in the background.
+  // Skip non-GET requests (e.g., POST API calls)
+  if (request.method !== 'GET') return;
+
+  // Core Assets: Stale-While-Revalidate
   if (CORE_ASSETS.includes(url.pathname) || url.pathname === '/') {
     event.respondWith(
-      caches.open(CORE_CACHE_NAME).then(cache => {
-        return cache.match(event.request).then(cachedResponse => {
-          const fetchedResponsePromise = fetch(event.request).then(networkResponse => {
-            cache.put(event.request, networkResponse.clone());
-            return networkResponse;
-          });
-          return cachedResponse || fetchedResponsePromise;
-        });
+      caches.match(request).then(cachedResponse => {
+        const fetchPromise = fetch(request).then(networkResponse => {
+          caches.open(CORE_CACHE_NAME).then(cache => cache.put(request, networkResponse));
+          return networkResponse.clone();
+        }).catch(() => cachedResponse || caches.match(OFFLINE_URL));
+        return cachedResponse || fetchPromise;
       })
     );
-  } 
-  // Strategy 2: Cache First for dynamic assets (like Google Fonts, Tailwind CSS).
-  // Once they are cached, they are always served from the cache.
+  }
+  // Dynamic Assets: Cache First
   else {
     event.respondWith(
-      caches.open(DYNAMIC_CACHE_NAME).then(cache => {
-        return cache.match(event.request).then(cachedResponse => {
-          if (cachedResponse) {
-            return cachedResponse; // Return from cache if found
-          }
-          // Otherwise, fetch from network, cache it, and then return it.
-          return fetch(event.request).then(networkResponse => {
-            cache.put(event.request, networkResponse.clone());
-            return networkResponse;
-          });
-        });
+      caches.match(request).then(cachedResponse => {
+        return cachedResponse || fetch(request).then(networkResponse => {
+          caches.open(DYNAMIC_CACHE_NAME).then(cache => cache.put(request, networkResponse));
+          return networkResponse.clone();
+        }).catch(() => caches.match(OFFLINE_URL));
       })
     );
   }
