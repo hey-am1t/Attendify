@@ -10,7 +10,7 @@ const DYNAMIC_CACHE_NAME = 'attendify-dynamic-v1';
 
 // App Shell: The essential files for the app to work offline.
 const CORE_ASSETS = [
-  '/',
+  './',
   'index.html', // Make sure your HTML file is named index.html
   'manifest.json',
   'icons/icon-192x192.png',
