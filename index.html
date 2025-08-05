@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<meta name="description" content="A smart, reliable attendance system with camera capture and offline capabilities."/>
     <!-- PWA Specific Meta Tags -->
 <meta name="theme-color" content="#4338ca"/>
 <link rel="apple-touch-icon" href="icons/icon-192x192.png">
@@ -16,24 +15,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
-        .video-container {
-    border: 10px solid white;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1), 0 6px 20px rgba(0,0,0,0.1);
-    border-radius: 8px;
-    background: #e5e7eb;
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    aspect-ratio: 4 / 3; /* Naya code */
-    width: 100%;
-}
-video#camera-feed {
-    width: 100%;
-    height: 100%;
-    object-fit: cover; /* Naya code */
-}
+        .video-container { border: 10px solid white; box-shadow: 0 4px 8px rgba(0,0,0,0.1), 0 6px 20px rgba(0,0,0,0.1); border-radius: 8px; background: #e5e7eb; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; min-height: 240px; }
         .btn { transition: all 0.2s ease-in-out; }
         .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
         .btn:active { transform: translateY(0); box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
@@ -107,8 +89,8 @@ video#camera-feed {
             </div>
 
             <div class="grid grid-cols-2 gap-4">
-                <button id="in-btn" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg btn flex justify-center items-center" disabled title="Ctrl + I">IN</button>
-                <button id="out-btn" class="w-full bg-red-600 text-white font-bold py-3 px-4 rounded-lg btn flex justify-center items-center" disabled title="Ctrl + O">OUT</button>
+                <button id="in-btn" class="w-full bg-green-500 text-white font-bold py-3 px-4 rounded-lg btn flex justify-center items-center" disabled title="Ctrl + I">IN</button>
+                <button id="out-btn" class="w-full bg-red-500 text-white font-bold py-3 px-4 rounded-lg btn flex justify-center items-center" disabled title="Ctrl + O">OUT</button>
             </div>
 
             <div id="status-message" class="text-center text-sm font-medium p-3 rounded-lg hidden fade-in"></div>
@@ -177,7 +159,7 @@ video#camera-feed {
 
         // --- App State ---
         const state = {
-            GAS_URL: 'https://script.google.com/macros/s/AKfycbw3bXzdT3_9-RKagl3u_NTB4SUJwHVB-25V_IZ5hXw5zgtPP6cQOv6xQ2q-hJVd960q/exec',
+            GAS_URL: 'https://script.google.com/macros/s/AKfycbwMrB9VG6x5yTiPwSUHFYEUfThMbMRJrpw1v_4y8RaBW19qVBslL5b63K6M2qhZVg0i/exec',
             employeeDatabase: {}, videoDevices: [], currentDeviceIndex: 0,
             currentStream: null, isTorchSupported: false, isTorchOn: false,
             pendingAction: null, maxRetries: 2,
@@ -255,10 +237,10 @@ video#camera-feed {
         function handleNetworkStatus() {
             const update = () => {
                 if (navigator.onLine) {
-                    updateStatusBar('network', 'Online', 'text-green-700');
+                    updateStatusBar('network', 'Online', 'text-green-600');
                     syncOfflineData();
                 } else {
-                    updateStatusBar('network', 'Offline', 'text-red-700');
+                    updateStatusBar('network', 'Offline', 'text-red-600');
                     showStatus('You are offline. Data will be saved locally.', 'warning');
                 }
             };
@@ -270,7 +252,7 @@ video#camera-feed {
         async function syncOfflineData() {
             let queue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
             if (queue.length === 0) {
-                updateStatusBar('sync', 'Synced', 'text-green-700');
+                updateStatusBar('sync', 'Synced', 'text-green-600');
                 return;
             }
             updateStatusBar('sync', `Syncing: ${queue.length}`, 'text-blue-600');
@@ -285,7 +267,7 @@ video#camera-feed {
                     } else { throw new Error(result.message); }
                 } catch (error) {
                     console.error('Failed to sync item:', data.id, error);
-                    updateStatusBar('sync', 'Sync Failed', 'text-red-700');
+                    updateStatusBar('sync', 'Sync Failed', 'text-red-600');
                     showStatus('Sync failed. Will retry later.', 'error');
                     break; 
                 }
@@ -299,7 +281,7 @@ video#camera-feed {
             
             const remaining = (JSON.parse(localStorage.getItem('pending_attendance')) || []).length;
             if(remaining === 0) {
-                 updateStatusBar('sync', 'Synced', 'text-green-700');
+                 updateStatusBar('sync', 'Synced', 'text-green-600');
             } else {
                  updateStatusBar('sync', `Pending: ${remaining}`, 'text-yellow-600');
             }
@@ -311,7 +293,7 @@ video#camera-feed {
             elements.video.classList.add('hidden');
 
             if (!navigator.mediaDevices?.getUserMedia) {
-                updateStatusBar('camera', 'Unsupported', 'text-red-700');
+                updateStatusBar('camera', 'Unsupported', 'text-red-600');
                 showStatus('Error: Camera is not supported on this device/browser.', 'error');
                 elements.videoLoader.classList.add('hidden');
                 return;
@@ -343,7 +325,7 @@ video#camera-feed {
                     elements.video.play();
                     elements.videoLoader.classList.add('hidden');
                     elements.video.classList.remove('hidden');
-                    updateStatusBar('camera', 'Ready', 'text-green-700');
+                    updateStatusBar('camera', 'Ready', 'text-green-600');
                     checkTorchSupport();
                 };
 
@@ -364,7 +346,7 @@ video#camera-feed {
                     statusText = 'In Use';
                 }
                 
-                updateStatusBar('camera', statusText, 'text-red-700');
+                updateStatusBar('camera', statusText, 'text-red-600');
                 showStatus(errorMessage, 'error');
                 console.error("Camera Error Details:", error); // Debugging ke liye
             }
@@ -381,11 +363,11 @@ video#camera-feed {
                 await elements.video.play();
                 elements.videoLoader.classList.add('hidden');
                 elements.video.classList.remove('hidden');
-                updateStatusBar('camera', 'Ready', 'text-green-700');
+                updateStatusBar('camera', 'Ready', 'text-green-600');
                 checkTorchSupport();
             } catch (error) {
                 elements.videoLoader.classList.add('hidden');
-                updateStatusBar('camera', 'Error', 'text-red-700');
+                updateStatusBar('camera', 'Error', 'text-red-600');
                 showStatus('Error: Could not start the camera.', 'error');
             }
         }
@@ -722,5 +704,3 @@ video#camera-feed {
     </script>
 </body>
 </html>
-
-
