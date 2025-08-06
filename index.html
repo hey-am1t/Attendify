@@ -7,36 +7,43 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { font-family: 'Inter', sans-serif; }
-    .video-container { position: relative; width: 100%; max-width: 320px; aspect-ratio: 4/3; background: #f3f4f6; border-radius: 8px; overflow: hidden; margin: 0 auto; }
+    .video-container { position: relative; width: 100%; max-width: 320px; aspect-ratio: 4/3; background: #111827; border-radius: 12px; overflow: hidden; margin: 0 auto; }
     video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
     canvas { display: none; }
+    .status-bar { background: #1f2937; color: #fff; padding: 8px; border-radius: 8px; font-size: 14px; text-align: center; }
+    .btn-primary { background-color: #2563eb; color: #fff; font-weight: bold; padding: 12px; border-radius: 8px; }
+    .btn-primary:hover { background-color: #1d4ed8; }
+    .btn-secondary { background-color: #374151; color: #fff; font-weight: bold; padding: 12px; border-radius: 8px; }
   </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
-  <div class="w-full max-w-md bg-white rounded-xl shadow-lg p-6 space-y-6">
+<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4">
+  <div class="w-full max-w-md bg-gray-800 rounded-xl shadow-lg p-6 space-y-6">
     <header class="text-center">
-      <h1 class="text-2xl font-bold text-gray-800">Smart Attendance</h1>
-      <p id="status-message" class="text-sm text-gray-600 mt-2"></p>
+      <h1 class="text-2xl font-bold">Smart Attendance</h1>
     </header>
+
+    <div id="sync-status" class="status-bar">Checking connection...</div>
 
     <div class="video-container">
       <video id="camera-feed" autoplay playsinline></video>
       <canvas id="photo-canvas"></canvas>
+      <button id="switch-camera" class="absolute top-2 right-2 bg-black/50 text-white px-2 py-1 rounded">Switch</button>
+      <button id="toggle-flash" class="absolute top-2 left-2 bg-black/50 text-white px-2 py-1 rounded">Flash</button>
     </div>
 
     <div class="space-y-3">
-      <input type="text" id="emp-id" placeholder="Enter Employee ID or Scan QR" class="w-full px-4 py-2 border rounded-lg">
-      <input type="text" id="name" placeholder="Full Name" class="w-full px-4 py-2 border rounded-lg" readonly>
-      <input type="text" id="department" placeholder="Department" class="w-full px-4 py-2 border rounded-lg" readonly>
-      <input type="text" id="designation" placeholder="Designation" class="w-full px-4 py-2 border rounded-lg" readonly>
+      <input type="text" id="emp-id" placeholder="Enter Employee ID or Scan QR" class="w-full px-4 py-2 border rounded-lg text-black">
+      <input type="text" id="name" placeholder="Full Name" class="w-full px-4 py-2 border rounded-lg text-black" readonly>
+      <input type="text" id="department" placeholder="Department" class="w-full px-4 py-2 border rounded-lg text-black" readonly>
+      <input type="text" id="designation" placeholder="Designation" class="w-full px-4 py-2 border rounded-lg text-black" readonly>
     </div>
 
     <div class="text-center">
-      <a href="#" id="toggle-location-btn" class="text-blue-600 hover:underline text-sm">Working from Outside?</a>
+      <a href="#" id="toggle-location-btn" class="text-blue-400 hover:underline text-sm">Working from Outside?</a>
     </div>
 
-    <div id="location-options" class="hidden space-y-2 bg-gray-50 p-3 rounded-lg">
-      <p class="text-sm font-medium text-gray-700">Select Location</p>
+    <div id="location-options" class="hidden space-y-2 bg-gray-700 p-3 rounded-lg">
+      <p class="text-sm font-medium">Select Location</p>
       <div class="flex items-center space-x-4">
         <label><input type="radio" name="location-type" value="Inside Office" checked> Inside Office</label>
         <label><input type="radio" name="location-type" value="Outside"> Outside</label>
@@ -44,14 +51,25 @@
     </div>
 
     <div class="grid grid-cols-2 gap-4">
-      <button id="in-btn" class="bg-green-500 text-white font-bold py-3 rounded-lg">IN</button>
-      <button id="out-btn" class="bg-red-500 text-white font-bold py-3 rounded-lg">OUT</button>
+      <button id="in-btn" class="btn-primary">IN</button>
+      <button id="out-btn" class="btn-secondary">OUT</button>
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <!-- Confirmation Modal -->
+  <div id="confirmation-modal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+    <div class="bg-gray-800 p-6 rounded-lg space-y-4 max-w-sm text-center">
+      <h2 class="text-xl font-bold">Confirm Action</h2>
+      <p id="confirm-text"></p>
+      <div class="flex justify-center space-x-4">
+        <button id="confirm-yes" class="bg-green-500 px-4 py-2 rounded">Yes</button>
+        <button id="confirm-no" class="bg-red-500 px-4 py-2 rounded">No</button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbykDNYTv6MJXk2gHKTxLW-da_PrOY_ZLS7VlOIU8jdJB6B_-XFohV99diNVVpka1blQ/exec'; // Replace with your deployed Apps Script URL
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbykDNYTv6MJXk2gHKTxLW-da_PrOY_ZLS7VlOIU8jdJB6B_-XFohV99diNVVpka1blQ/exec';
     const elements = {
       video: document.getElementById('camera-feed'),
       canvas: document.getElementById('photo-canvas'),
@@ -61,28 +79,40 @@
       designation: document.getElementById('designation'),
       inBtn: document.getElementById('in-btn'),
       outBtn: document.getElementById('out-btn'),
-      statusMessage: document.getElementById('status-message'),
       toggleLocationBtn: document.getElementById('toggle-location-btn'),
-      locationOptions: document.getElementById('location-options')
+      locationOptions: document.getElementById('location-options'),
+      syncStatus: document.getElementById('sync-status'),
+      switchCamera: document.getElementById('switch-camera'),
+      toggleFlash: document.getElementById('toggle-flash'),
+      modal: document.getElementById('confirmation-modal'),
+      confirmText: document.getElementById('confirm-text'),
+      confirmYes: document.getElementById('confirm-yes'),
+      confirmNo: document.getElementById('confirm-no')
     };
 
     let stream;
-    let employeeDatabase = {};
+    let currentFacingMode = 'user';
+    let track;
+    let flashOn = false;
     let offlineQueue = JSON.parse(localStorage.getItem('offlineQueue') || '[]');
+    let pendingStatus = null;
 
     async function initCamera() {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } });
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacingMode } });
         elements.video.srcObject = stream;
+        track = stream.getVideoTracks()[0];
       } catch (error) {
-        elements.statusMessage.textContent = 'Error: Cannot access camera.';
+        elements.syncStatus.textContent = 'Error: Cannot access camera.';
       }
     }
 
-    function showStatus(message, type = 'info') {
-      const colors = { info: 'text-blue-600', success: 'text-green-600', error: 'text-red-600', warning: 'text-yellow-600' };
-      elements.statusMessage.className = colors[type] || colors.info;
-      elements.statusMessage.textContent = message;
+    function updateSyncStatus() {
+      if (navigator.onLine) {
+        elements.syncStatus.textContent = offlineQueue.length > 0 ? `Online - Syncing ${offlineQueue.length} items...` : 'Online';
+      } else {
+        elements.syncStatus.textContent = 'Offline - Data will sync later';
+      }
     }
 
     async function captureCompressedImage() {
@@ -93,9 +123,7 @@
         const aspectRatio = video.videoWidth / video.videoHeight;
         elements.canvas.width = maxWidth;
         elements.canvas.height = maxWidth / aspectRatio;
-
         context.drawImage(video, 0, 0, elements.canvas.width, elements.canvas.height);
-
         const timestamp = new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
         context.font = '20px Inter';
         context.fillStyle = 'white';
@@ -103,118 +131,95 @@
         context.lineWidth = 3;
         context.strokeText(timestamp, 20, elements.canvas.height - 20);
         context.fillText(timestamp, 20, elements.canvas.height - 20);
-
         const compressedDataUrl = elements.canvas.toDataURL('image/jpeg', 0.7);
         resolve(compressedDataUrl.split(',')[1]);
       });
     }
 
+    async function confirmAction(status) {
+      pendingStatus = status;
+      elements.confirmText.textContent = `Are you sure you want to mark ${status}?`;
+      elements.modal.classList.remove('hidden');
+    }
+
+    elements.confirmYes.addEventListener('click', async () => {
+      elements.modal.classList.add('hidden');
+      await markAttendance(pendingStatus);
+      pendingStatus = null;
+    });
+
+    elements.confirmNo.addEventListener('click', () => {
+      elements.modal.classList.add('hidden');
+      pendingStatus = null;
+    });
+
     async function markAttendance(status) {
       const empId = elements.empId.value.trim();
-      if (!empId) {
-        showStatus('Please enter Employee ID.', 'warning');
+      if (!empId) return alert('Please enter Employee ID.');
+      const imageData = await captureCompressedImage();
+      const locationType = document.querySelector('input[name="location-type"]:checked').value;
+      const payload = { id: 'att_' + Date.now(), empId, name: elements.name.value, department: elements.department.value, designation: elements.designation.value, status, locationType, imageData };
+
+      if (!navigator.onLine) {
+        offlineQueue.push(payload);
+        localStorage.setItem('offlineQueue', JSON.stringify(offlineQueue));
+        updateSyncStatus();
         return;
       }
 
-      showStatus('Processing...', 'info');
-
-      try {
-        const imageData = await captureCompressedImage();
-        const locationType = document.querySelector('input[name="location-type"]:checked').value;
-        const payload = {
-          id: 'att_' + Date.now(),
-          empId,
-          name: elements.name.value,
-          department: elements.department.value,
-          designation: elements.designation.value,
-          status,
-          locationType,
-          imageData
-        };
-
-        if (!navigator.onLine) {
-          saveOffline(payload);
-          showStatus('Offline: Attendance saved locally.', 'warning');
-          return;
-        }
-
-        await sendAttendance(payload);
-      } catch (error) {
-        showStatus('Error capturing image.', 'error');
-      }
+      await sendAttendance(payload);
     }
 
     async function sendAttendance(payload) {
       try {
         const response = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
-        const result = await response.json();
-        if (result.status === 'success') {
-          showStatus('Attendance marked successfully!', 'success');
-        } else if (result.status === 'queued') {
-          showStatus('High load. Attendance queued.', 'warning');
-        } else {
-          showStatus('Error: ' + result.message, 'error');
-        }
-      } catch (error) {
-        saveOffline(payload);
-        showStatus('Network error. Saved locally.', 'warning');
+        await response.json();
+        updateSyncStatus();
+      } catch {
+        offlineQueue.push(payload);
+        localStorage.setItem('offlineQueue', JSON.stringify(offlineQueue));
       }
-    }
-
-    function saveOffline(payload) {
-      offlineQueue.push(payload);
-      localStorage.setItem('offlineQueue', JSON.stringify(offlineQueue));
     }
 
     async function syncOfflineData() {
       if (navigator.onLine && offlineQueue.length > 0) {
-        showStatus('Syncing offline data...', 'info');
+        updateSyncStatus();
         const queueCopy = [...offlineQueue];
         offlineQueue = [];
         localStorage.setItem('offlineQueue', JSON.stringify([]));
-
         for (const item of queueCopy) {
           await sendAttendance(item);
         }
-        showStatus('Offline data synced.', 'success');
+        updateSyncStatus();
       }
     }
 
-    async function fetchEmployeeData() {
-      try {
-        const response = await fetch(GAS_URL + '?action=getEmployees');
-        employeeDatabase = await response.json();
-      } catch (error) {
-        showStatus('Could not fetch employee data.', 'error');
-      }
-    }
+    elements.inBtn.addEventListener('click', () => confirmAction('IN'));
+    elements.outBtn.addEventListener('click', () => confirmAction('OUT'));
 
-    function handleIdInput() {
-      const empId = elements.empId.value.trim().toUpperCase();
-      if (!empId) return;
-      const employee = employeeDatabase[empId];
-      if (employee) {
-        elements.name.value = employee.name;
-        elements.department.value = employee.department;
-        elements.designation.value = employee.designation;
-      } else {
-        elements.name.value = '';
-        elements.department.value = '';
-        elements.designation.value = '';
-      }
-    }
-
-    elements.empId.addEventListener('blur', handleIdInput);
-    elements.inBtn.addEventListener('click', () => markAttendance('IN'));
-    elements.outBtn.addEventListener('click', () => markAttendance('OUT'));
     elements.toggleLocationBtn.addEventListener('click', (e) => { e.preventDefault(); elements.locationOptions.classList.toggle('hidden'); });
 
+    elements.switchCamera.addEventListener('click', async () => {
+      currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+      if (stream) stream.getTracks().forEach(track => track.stop());
+      await initCamera();
+    });
+
+    elements.toggleFlash.addEventListener('click', () => {
+      if (!track) return;
+      const capabilities = track.getCapabilities();
+      if (capabilities.torch) {
+        flashOn = !flashOn;
+        track.applyConstraints({ advanced: [{ torch: flashOn }] });
+      }
+    });
+
     window.addEventListener('online', syncOfflineData);
+    window.addEventListener('offline', updateSyncStatus);
 
     initCamera();
-    fetchEmployeeData();
+    updateSyncStatus();
     syncOfflineData();
   </script>
 </body>
 </html>
-
