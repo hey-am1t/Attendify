@@ -30,13 +30,11 @@
         .torch-on { box-shadow: 0 0 15px 5px rgba(255, 255, 0, 0.7); background-color: rgba(255, 255, 150, 0.6) !important; }
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(4px); }
         #status-sync:hover { cursor: pointer; background-color: rgba(0,0,0,0.05); border-radius: 0.5rem; }
-        /* FIX: Style to prevent Flash of Unstyled Content (FOUC) */
         .main-container { opacity: 0; transition: opacity 0.4s ease-in-out; }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
 
-    <!-- FIXED: Added 'main-container' class to handle FOUC -->
     <div class="w-full max-w-md mx-auto bg-white rounded-xl shadow-2xl p-6 md:p-8 space-y-5 main-container">
         
         <header class="text-center relative">
@@ -86,7 +84,6 @@
                     <label for="department" class="block text-sm font-medium text-gray-700 mb-1">Department</label>
                     <input type="text" id="department" placeholder="Auto-filled" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg">
                 </div>
-                <!-- This field is correctly hidden but used in the background -->
                 <div class="hidden"> 
                     <label for="designation" class="block text-sm font-medium text-gray-700 mb-1">Designation</label>
                     <input type="text" id="designation" placeholder="Auto-filled" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg">
@@ -102,7 +99,7 @@
         </main>
         
         <footer class="text-center pt-4 border-t border-gray-200">
-            <p class="text-xs text-gray-400">&copy; Amit Kumar 2025 | V16.1</p>
+            <p class="text-xs text-gray-400">&copy; Amit Kumar 2025 | V16.2</p>
         </footer>
     </div>
 
@@ -165,7 +162,7 @@
 
         // --- App State ---
         const state = {
-            GAS_URL: 'https://script.google.com/macros/s/AKfycbwZXROrrWv_Q7XPGigSCnsJAzCv22jqEyeYOVPhtzZ7tTNE7-9Tz7Tf1yyYp3k7eiD3/exec',
+            GAS_URL: 'https://script.google.com/macros/s/AKfycbzhxFdl2F0VJqrs9K7uq_jx5o4EubMOjBHaqW-z7vRrowtqhZHoTmNNHkfc0V5ljUqr/exec',
             employeeDatabase: {}, videoDevices: [], currentDeviceIndex: 0,
             currentStream: null, isTorchSupported: false, isTorchOn: false,
             pendingAction: null, maxRetries: 2,
@@ -209,35 +206,11 @@
         }
         
         // --- Core Logic ---
-        async function getServerTime() {
-            try {
-                // Using a more reliable time API with a fallback
-                const response = await fetch('https://worldtimeapi.org/api/timezone/Asia/Kolkata');
-                if (!response.ok) throw new Error('Network response was not ok');
-                const data = await response.json();
-                return new Date(data.datetime);
-            } catch (error) {
-                console.warn("Could not fetch server time, using local time.", error);
-                showStatus("Using device time due to server time error.", "warning");
-                return new Date();
-            }
-        }
-
+        // FIXED: This function now just shows the local device time on the screen.
         function startClock() {
-            let timeOffset = 0;
-            async function syncTime() {
-                try {
-                    const serverTime = await getServerTime();
-                    timeOffset = serverTime.getTime() - Date.now();
-                } catch (e) {
-                    timeOffset = 0;
-                }
-            }
-            syncTime();
-            setInterval(syncTime, 30 * 60 * 1000); // Sync every 30 mins
             setInterval(() => {
-                const correctedTime = new Date(Date.now() + timeOffset);
-                elements.clock.textContent = correctedTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                const now = new Date();
+                elements.clock.textContent = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             }, 1000);
         }
         
@@ -444,14 +417,15 @@
             toggleButtonLoader(buttonToLoad, true, status);
 
             let dataToSend;
+            const clientTime = new Date(); // Get current device time
 
             try {
-                const serverTime = await getServerTime();
                 const context = elements.canvas.getContext('2d');
                 elements.canvas.width = elements.video.videoWidth;
                 elements.canvas.height = elements.video.videoHeight;
                 context.drawImage(elements.video, 0, 0, elements.canvas.width, elements.canvas.height);
-                const timestampText = serverTime.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+                // Watermark the image with the client's local time
+                const timestampText = clientTime.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
                 context.font = '24px Inter';
                 context.fillStyle = 'white';
                 context.strokeStyle = 'black';
@@ -472,7 +446,8 @@
                     locationType,
                     imageData: imageData.split(',')[1],
                     status,
-                    timestamp: serverTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+                    // FIXED: Send the client's time. The server will generate the official one.
+                    timestamp: clientTime.toISOString() 
                 };
 
                 await submitDataWithRetry(dataToSend);
@@ -488,7 +463,7 @@
                         designation: elements.designationInput.value,
                         locationType: document.querySelector('input[name="location-type"]:checked').value,
                         imageData: "N/A", status,
-                        timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+                        timestamp: clientTime.toISOString()
                     };
                 }
                 saveOffline(dataToSend);
@@ -536,7 +511,6 @@
             elements.empIdInput.focus();
         }
         
-        // FIXED: Increased timeout to 20 seconds to handle "cold starts" of the Google Script.
         async function networkRequest(url, options = {}, timeout = 20000) {
             const controller = new AbortController();
             const id = setTimeout(() => controller.abort(), timeout);
@@ -605,12 +579,10 @@
         }
         
         function deleteSyncItem(itemId) {
-            // Using the custom modal for a better user experience
             openConfirmationModal('DELETE_PENDING');
             elements.modalTitle.textContent = 'Delete Record';
             elements.modalBody.innerHTML = 'Are you sure you want to permanently delete this pending record?';
             
-            // Temporarily replace the confirm button's action
             const confirmDelete = () => {
                 let queue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
                 const newQueue = queue.filter(item => item.id !== itemId);
@@ -619,7 +591,6 @@
                 showPendingSyncs();
                 syncOfflineData();
                 closeConfirmationModal();
-                 // Restore original confirm button listener
                 elements.confirmBtn.removeEventListener('click', confirmDelete);
                 elements.confirmBtn.addEventListener('click', executeAttendance);
             };
@@ -653,7 +624,7 @@
             elements.statusSync.addEventListener('click', showPendingSyncs);
             elements.closeSyncModalBtn.addEventListener('click', () => elements.pendingSyncModal.classList.add('hidden'));
             elements.pendingList.addEventListener('click', (event) => {
-                const button = event.target.closest('button'); // More robust event delegation
+                const button = event.target.closest('button');
                 if (!button) return;
 
                 if (button.classList.contains('retry-btn')) {
@@ -673,11 +644,9 @@
             initializeCamera();
             fetchEmployeeData();
             addEventListeners();
-            // FIX: Fade in the main container to prevent FOUC
             elements.mainContainer.style.opacity = 1;
         }
         
-        // Run the app
         init();
 
     </script>
