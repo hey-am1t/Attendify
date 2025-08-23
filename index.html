@@ -3,12 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-     <!-- PWA Specific Meta Tags -->
     <meta name="theme-color" content="#4f46e5"/>
-    <meta name="description" content="A smart attendance system with camera capture and offline capabilities."/>
+    <meta name="description" content="A smart attendance and leave system with offline capabilities."/>
     <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
     <title>Attendify By Amit Kumar</title>
-    <!-- Link to Manifest File -->
     <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -95,11 +93,15 @@
                 <button id="out-btn" class="w-full bg-red-500 text-white font-bold py-3 px-4 rounded-lg btn flex justify-center items-center" disabled title="Ctrl + O">OUT</button>
             </div>
 
+            <div class="text-center pt-2">
+                <button id="show-leave-modal-btn" class="w-full bg-indigo-100 text-indigo-700 font-semibold py-2 px-4 rounded-lg btn">Apply for Leave</button>
+            </div>
+
             <div id="status-message" class="text-center text-sm font-medium p-3 rounded-lg hidden fade-in"></div>
         </main>
         
         <footer class="text-center pt-4 border-t border-gray-200">
-            <p class="text-xs text-gray-400">&copy; Amit Kumar 2025 | V16.2</p>
+            <p class="text-xs text-gray-400">&copy; Amit Kumar 2025 | V17.1</p>
         </footer>
     </div>
 
@@ -124,6 +126,45 @@
             </div>
             <p class="text-xs text-gray-500">These records will be synced automatically when you are online.</p>
             <ul id="pending-list" class="h-48 overflow-y-auto border rounded-lg bg-gray-50 p-2 space-y-2"></ul>
+        </div>
+    </div>
+
+    <!-- Leave Application Modal -->
+    <div id="leave-modal" class="modal-overlay hidden fade-in">
+        <div class="bg-white w-full max-w-sm rounded-lg shadow-xl p-6 space-y-4">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-bold text-gray-800">Leave Application</h3>
+                <button id="close-leave-modal-btn" class="text-2xl font-light">&times;</button>
+            </div>
+            <form id="leave-form" class="space-y-3 text-left">
+                <div>
+                    <label for="leave-type" class="block text-sm font-medium text-gray-700 mb-1">Leave Type</label>
+                    <select id="leave-type" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                        <option value="">-- Select Type --</option>
+                        <option value="Sick Leave">Sick Leave</option>
+                        <option value="Casual Leave">Casual Leave</option>
+                        <option value="Vacation">Vacation</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="start-date" class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                        <input type="date" id="start-date" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label for="end-date" class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                        <input type="date" id="end-date" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+                <div>
+                    <label for="leave-reason" class="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+                    <textarea id="leave-reason" rows="3" required placeholder="Briefly explain the reason for your leave..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"></textarea>
+                </div>
+                <div class="pt-2">
+                    <button type="submit" id="submit-leave-btn" class="w-full bg-indigo-600 text-white font-bold py-2.5 px-4 rounded-lg btn flex justify-center items-center">Submit Application</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -158,11 +199,20 @@
             pendingSyncModal: document.getElementById('pending-sync-modal'),
             closeSyncModalBtn: document.getElementById('close-sync-modal-btn'),
             pendingList: document.getElementById('pending-list'),
+            showLeaveModalBtn: document.getElementById('show-leave-modal-btn'),
+            leaveModal: document.getElementById('leave-modal'),
+            closeLeaveModalBtn: document.getElementById('close-leave-modal-btn'),
+            leaveForm: document.getElementById('leave-form'),
+            submitLeaveBtn: document.getElementById('submit-leave-btn'),
+            leaveTypeInput: document.getElementById('leave-type'),
+            startDateInput: document.getElementById('start-date'),
+            endDateInput: document.getElementById('end-date'),
+            leaveReasonInput: document.getElementById('leave-reason'),
         };
 
         // --- App State ---
         const state = {
-            GAS_URL: 'https://script.google.com/macros/s/AKfycbzhxFdl2F0VJqrs9K7uq_jx5o4EubMOjBHaqW-z7vRrowtqhZHoTmNNHkfc0V5ljUqr/exec',
+            GAS_URL: 'https://script.google.com/macros/s/AKfycbxqeRUKSiLrc1oOTrGoIZZqEbbGOdX6Cmq7IkO9-qfUhos-vScm9THQsGyaYh8pYOvC/exec',
             employeeDatabase: {}, videoDevices: [], currentDeviceIndex: 0,
             currentStream: null, isTorchSupported: false, isTorchOn: false,
             pendingAction: null, maxRetries: 2,
@@ -206,7 +256,6 @@
         }
         
         // --- Core Logic ---
-        // FIXED: This function now just shows the local device time on the screen.
         function startClock() {
             setInterval(() => {
                 const now = new Date();
@@ -417,14 +466,13 @@
             toggleButtonLoader(buttonToLoad, true, status);
 
             let dataToSend;
-            const clientTime = new Date(); // Get current device time
+            const clientTime = new Date();
 
             try {
                 const context = elements.canvas.getContext('2d');
                 elements.canvas.width = elements.video.videoWidth;
                 elements.canvas.height = elements.video.videoHeight;
                 context.drawImage(elements.video, 0, 0, elements.canvas.width, elements.canvas.height);
-                // Watermark the image with the client's local time
                 const timestampText = clientTime.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
                 context.font = '24px Inter';
                 context.fillStyle = 'white';
@@ -446,7 +494,6 @@
                     locationType,
                     imageData: imageData.split(',')[1],
                     status,
-                    // FIXED: Send the client's time. The server will generate the official one.
                     timestamp: clientTime.toISOString() 
                 };
 
@@ -599,6 +646,47 @@
             elements.confirmBtn.addEventListener('click', confirmDelete, { once: true });
         }
 
+        async function handleLeaveSubmit(event) {
+            event.preventDefault(); 
+
+            const empId = elements.empIdInput.value.trim().toUpperCase();
+            const name = elements.nameInput.value.trim();
+
+            if (!empId || !name) {
+                showStatus('Please enter a valid Employee ID before applying for leave.', 'warning');
+                elements.leaveModal.classList.add('hidden');
+                return;
+            }
+
+            const leaveData = {
+                action: 'requestLeave',
+                empId: empId,
+                name: name,
+                leaveType: elements.leaveTypeInput.value,
+                startDate: elements.startDateInput.value,
+                endDate: elements.endDateInput.value,
+                reason: elements.leaveReasonInput.value,
+            };
+
+            toggleButtonLoader(elements.submitLeaveBtn, true, 'Submit Application');
+
+            try {
+                const response = await networkRequest(state.GAS_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(leaveData)
+                });
+                const result = await response.json();
+                if (result.status !== 'success') throw new Error(result.message);
+                
+                showStatus('Leave application submitted successfully!', 'success');
+                elements.leaveModal.classList.add('hidden');
+                elements.leaveForm.reset();
+            } catch (error) {
+                showStatus(`Submission failed: ${error.message}`, 'error');
+            } finally {
+                toggleButtonLoader(elements.submitLeaveBtn, false, 'Submit Application');
+            }
+        }
 
         function addEventListeners() {
             elements.inBtn.addEventListener('click', () => openConfirmationModal('IN'));
@@ -634,6 +722,13 @@
                     deleteSyncItem(itemId);
                 }
             });
+            elements.showLeaveModalBtn.addEventListener('click', () => {
+                elements.leaveModal.classList.remove('hidden');
+            });
+            elements.closeLeaveModalBtn.addEventListener('click', () => {
+                elements.leaveModal.classList.add('hidden');
+            });
+            elements.leaveForm.addEventListener('submit', handleLeaveSubmit);
         }
 
         function init() {
