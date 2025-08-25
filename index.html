@@ -9,6 +9,8 @@
     <title>Attendify By Amit Kumar</title>
     <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- AI Face Detection Library -->
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -29,6 +31,7 @@
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(4px); }
         #status-sync:hover { cursor: pointer; background-color: rgba(0,0,0,0.05); border-radius: 0.5rem; }
         .main-container { opacity: 0; transition: opacity 0.4s ease-in-out; }
+        #photo-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
@@ -51,7 +54,7 @@
         <main id="app-content" class="space-y-4">
             <div class="video-container">
                 <div id="video-loader" class="video-loader"></div>
-                <video id="camera-feed" autoplay playsinline class="w-full h-auto rounded-sm hidden"></video>
+                <video id="camera-feed" autoplay playsinline class="w-full h-auto rounded-sm"></video>
                 <canvas id="photo-canvas" class="hidden"></canvas>
                 <div class="absolute bottom-3 right-3 flex gap-3">
                     <button id="torch-btn" class="p-3 bg-white/60 backdrop-blur-sm rounded-full btn hidden" title="Toggle Flash/Torch"></button>
@@ -59,6 +62,10 @@
                 </div>
             </div>
             
+            <div class="text-center">
+                 <button id="recapture-btn" class="w-full bg-yellow-100 text-yellow-800 font-semibold py-2 px-4 rounded-lg btn hidden">Re-capture Photo</button>
+            </div>
+
             <div class="space-y-3">
                 <div>
                     <label for="emp-id" class="block text-sm font-medium text-gray-700 mb-1">Employee ID</label>
@@ -101,7 +108,7 @@
         </main>
         
         <footer class="text-center pt-4 border-t border-gray-200">
-            <p class="text-xs text-gray-400">&copy; Amit Kumar 2025 | V17.1</p>
+            <p class="text-xs text-gray-400">&copy; Amit Kumar 2025 | V18.1</p>
         </footer>
     </div>
 
@@ -159,7 +166,7 @@
                 </div>
                 <div>
                     <label for="leave-reason" class="block text-sm font-medium text-gray-700 mb-1">Reason</label>
-                    <textarea id="leave-reason" rows="3" required placeholder="Briefly explain the reason for your leave..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"></textarea>
+                    <textarea id="leave-reason" rows="3" required placeholder="Briefly explain the reason..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"></textarea>
                 </div>
                 <div class="pt-2">
                     <button type="submit" id="submit-leave-btn" class="w-full bg-indigo-600 text-white font-bold py-2.5 px-4 rounded-lg btn flex justify-center items-center">Submit Application</button>
@@ -181,6 +188,7 @@
             canvas: document.getElementById('photo-canvas'),
             torchBtn: document.getElementById('torch-btn'),
             switchCameraBtn: document.getElementById('switch-camera-btn'),
+            recaptureBtn: document.getElementById('recapture-btn'),
             empIdInput: document.getElementById('emp-id'),
             nameInput: document.getElementById('name'),
             departmentInput: document.getElementById('department'),
@@ -190,6 +198,7 @@
             statusMessage: document.getElementById('status-message'),
             toggleLocationBtn: document.getElementById('toggle-location-btn'),
             locationOptionsDiv: document.getElementById('location-options-div'),
+            locOutsideRadio: document.getElementById('loc-outside'),
             modal: document.getElementById('confirmation-modal'),
             modalTitle: document.getElementById('modal-title'),
             modalBody: document.getElementById('modal-body'),
@@ -212,10 +221,18 @@
 
         // --- App State ---
         const state = {
-            GAS_URL: 'https://script.google.com/macros/s/AKfycbxqeRUKSiLrc1oOTrGoIZZqEbbGOdX6Cmq7IkO9-qfUhos-vScm9THQsGyaYh8pYOvC/exec',
-            employeeDatabase: {}, videoDevices: [], currentDeviceIndex: 0,
-            currentStream: null, isTorchSupported: false, isTorchOn: false,
-            pendingAction: null, maxRetries: 2,
+            GAS_URL: 'https://script.google.com/macros/s/AKfycbzkIP1T96S-T9jQiemNUOAVgIvvurF-UXmS_R1qzu79o_wtKP50isQbAuH_ncY66N35/exec',
+            employeeDatabase: {},
+            videoDevices: [],
+            currentDeviceIndex: 0,
+            currentStream: null,
+            isTorchSupported: false,
+            isTorchOn: false,
+            pendingAction: null,
+            maxRetries: 2,
+            faceDetectionInterval: null,
+            isPhotoCaptured: false,
+            currentLocation: { latitude: null, longitude: null },
         };
 
         // --- Icons ---
@@ -227,16 +244,14 @@
         
         // --- Utility & UI Functions ---
         function showStatus(message, type = 'info') {
-            elements.statusMessage.classList.remove('hidden', 'bg-blue-100', 'text-blue-700', 'bg-red-100', 'text-red-700', 'bg-yellow-100', 'text-yellow-700', 'bg-green-100', 'text-green-700');
-            let bgColor, textColor;
-            switch (type) {
-                case 'error': bgColor = 'bg-red-100'; textColor = 'text-red-700'; break;
-                case 'warning': bgColor = 'bg-yellow-100'; textColor = 'text-yellow-700'; break;
-                case 'success': bgColor = 'bg-green-100'; textColor = 'text-green-700'; break;
-                default: bgColor = 'bg-blue-100'; textColor = 'text-blue-700'; break;
-            }
-            elements.statusMessage.classList.add(bgColor, textColor);
             elements.statusMessage.textContent = message;
+            elements.statusMessage.className = 'text-center text-sm font-medium p-3 rounded-lg fade-in'; // Reset classes
+            switch (type) {
+                case 'error': elements.statusMessage.classList.add('bg-red-100', 'text-red-700'); break;
+                case 'warning': elements.statusMessage.classList.add('bg-yellow-100', 'text-yellow-700'); break;
+                case 'success': elements.statusMessage.classList.add('bg-green-100', 'text-green-700'); break;
+                default: elements.statusMessage.classList.add('bg-blue-100', 'text-blue-700'); break;
+            }
         }
 
         function updateStatusBar(component, text, colorClass) {
@@ -319,7 +334,7 @@
         async function initializeCamera() {
             updateStatusBar('camera', 'Starting...', 'text-yellow-600');
             elements.videoLoader.classList.remove('hidden');
-            elements.video.classList.add('hidden');
+            elements.video.classList.remove('hidden');
             
             if (!navigator.mediaDevices?.getUserMedia) {
                 updateStatusBar('camera', 'No Camera', 'text-red-600');
@@ -328,19 +343,17 @@
                 return;
             }
             try {
+                updateStatusBar('camera', 'Loading AI...', 'text-yellow-600');
+                await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights');
+                
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 state.videoDevices = devices.filter(d => d.kind === 'videoinput');
                 if (state.videoDevices.length > 1) elements.switchCameraBtn.classList.remove('hidden');
                 await startStream();
             } catch (error) {
                 elements.videoLoader.classList.add('hidden');
-                if (error.name === "NotAllowedError") {
-                    updateStatusBar('camera', 'Denied', 'text-red-600');
-                    showStatus('Error: Camera permission was denied. Please allow camera access in your browser settings.', 'error');
-                } else {
-                    updateStatusBar('camera', 'Error', 'text-red-600');
-                    showStatus('Error: Could not access camera. It might be in use by another app.', 'error');
-                }
+                updateStatusBar('camera', 'Error', 'text-red-600');
+                showStatus('Error: Could not initialize camera or AI models.', 'error');
             }
         }
 
@@ -352,10 +365,11 @@
             try {
                 state.currentStream = await navigator.mediaDevices.getUserMedia(constraints);
                 elements.video.srcObject = state.currentStream;
-                await elements.video.play();
-                elements.videoLoader.classList.add('hidden');
-                elements.video.classList.remove('hidden');
-                updateStatusBar('camera', 'Ready', 'text-green-600');
+                elements.video.onplaying = () => {
+                    elements.videoLoader.classList.add('hidden');
+                    updateStatusBar('camera', 'Detecting Face...', 'text-blue-600');
+                    startFaceDetection();
+                };
                 checkTorchSupport();
             } catch (error) {
                 elements.videoLoader.classList.add('hidden');
@@ -363,14 +377,17 @@
                 showStatus('Error: Could not start the camera.', 'error');
             }
         }
-
+        
+        // FIXED: Added missing checkTorchSupport and toggleTorch functions
         function checkTorchSupport() {
             if (!state.currentStream) return;
             const track = state.currentStream.getVideoTracks()[0];
-            const capabilities = track.getCapabilities();
-            state.isTorchSupported = !!capabilities.torch;
-            if (state.isTorchSupported) {
-                elements.torchBtn.classList.remove('hidden');
+            if (track.getCapabilities) {
+                const capabilities = track.getCapabilities();
+                state.isTorchSupported = !!capabilities.torch;
+                if (state.isTorchSupported) {
+                    elements.torchBtn.classList.remove('hidden');
+                }
             }
         }
 
@@ -383,6 +400,70 @@
                 elements.torchBtn.classList.toggle('torch-on', state.isTorchOn);
             } catch(err) {
                 showStatus('Could not control torch.', 'error');
+            }
+        }
+
+        function startFaceDetection() {
+            state.isPhotoCaptured = false;
+            if (state.faceDetectionInterval) clearInterval(state.faceDetectionInterval);
+
+            state.faceDetectionInterval = setInterval(async () => {
+                if (elements.video.paused) return;
+                const detections = await faceapi.detectAllFaces(elements.video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.5 }));
+                
+                if (detections.length > 0 && !state.isPhotoCaptured) {
+                    clearInterval(state.faceDetectionInterval);
+                    state.isPhotoCaptured = true;
+                    capturePhoto();
+                }
+            }, 500);
+        }
+
+        function capturePhoto() {
+            elements.video.pause();
+            const context = elements.canvas.getContext('2d');
+            elements.canvas.width = elements.video.videoWidth;
+            elements.canvas.height = elements.video.videoHeight;
+            context.drawImage(elements.video, 0, 0, elements.canvas.width, elements.canvas.height);
+            
+            elements.canvas.classList.remove('hidden');
+            elements.recaptureBtn.classList.remove('hidden');
+            updateStatusBar('camera', 'Face Captured!', 'text-green-600');
+            showStatus('Photo captured. You can now mark your attendance.', 'success');
+            
+            elements.inBtn.disabled = false;
+            elements.outBtn.disabled = false;
+        }
+
+        function handleRecapture() {
+            clearInterval(state.faceDetectionInterval);
+            state.isPhotoCaptured = false;
+            elements.canvas.classList.add('hidden');
+            elements.recaptureBtn.classList.add('hidden');
+            elements.inBtn.disabled = true;
+            elements.outBtn.disabled = true;
+            elements.video.play().then(() => {
+                updateStatusBar('camera', 'Detecting Face...', 'text-blue-600');
+                startFaceDetection();
+            });
+        }
+
+        function getLocation() {
+            if ('geolocation' in navigator) {
+                showStatus('Getting your location...', 'info');
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        state.currentLocation.latitude = position.coords.latitude;
+                        state.currentLocation.longitude = position.coords.longitude;
+                        showStatus('Location captured successfully.', 'success');
+                    },
+                    () => {
+                        showStatus('Location permission denied. Location will be marked N/A.', 'warning');
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            } else {
+                showStatus('Geolocation is not supported by your browser.', 'error');
             }
         }
         
@@ -414,8 +495,6 @@
         function enableInputs() {
             elements.empIdInput.disabled = false;
             elements.empIdInput.placeholder = 'e.g., EMP001';
-            elements.inBtn.disabled = false;
-            elements.outBtn.disabled = false;
         }
         
         function handleIdInput() {
@@ -426,8 +505,7 @@
                 elements.nameInput.value = employee.name;
                 elements.departmentInput.value = employee.department;
                 elements.designationInput.value = employee.designation;
-                showStatus('Employee found. Ready to mark attendance.', 'info');
-                elements.inBtn.focus();
+                showStatus('Employee found. Ready for attendance.', 'info');
             } else {
                 elements.nameInput.value = '';
                 elements.departmentInput.value = '';
@@ -444,6 +522,10 @@
                 elements.empIdInput.focus();
                 return;
             }
+             if (!state.isPhotoCaptured) {
+                showStatus('Please wait for photo to be captured.', 'warning');
+                return;
+            }
             
             state.pendingAction = status;
             elements.modalTitle.textContent = `Confirm Check-${status}`;
@@ -458,10 +540,9 @@
 
         async function executeAttendance() {
             const status = state.pendingAction;
-            if (!status) return;
+            if (!status || !state.isPhotoCaptured) return;
             
             closeConfirmationModal();
-            
             const buttonToLoad = (status === 'IN') ? elements.inBtn : elements.outBtn;
             toggleButtonLoader(buttonToLoad, true, status);
 
@@ -470,9 +551,6 @@
 
             try {
                 const context = elements.canvas.getContext('2d');
-                elements.canvas.width = elements.video.videoWidth;
-                elements.canvas.height = elements.video.videoHeight;
-                context.drawImage(elements.video, 0, 0, elements.canvas.width, elements.canvas.height);
                 const timestampText = clientTime.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
                 context.font = '24px Inter';
                 context.fillStyle = 'white';
@@ -489,33 +567,20 @@
                     action: 'markAttendance',
                     empId: elements.empIdInput.value.trim().toUpperCase(),
                     name: elements.nameInput.value.trim(),
-                    department: elements.departmentInput.value,
-                    designation: elements.designationInput.value,
-                    locationType,
                     imageData: imageData.split(',')[1],
                     status,
-                    timestamp: clientTime.toISOString() 
+                    locationType,
+                    latitude: locationType === 'Outside' ? state.currentLocation.latitude : null,
+                    longitude: locationType === 'Outside' ? state.currentLocation.longitude : null,
                 };
-
                 await submitDataWithRetry(dataToSend);
-                
             } catch (error) {
                 showStatus(`An error occurred: ${error.message}. Saving locally.`, 'warning');
-                if (!dataToSend) {
-                     dataToSend = {
-                        id: `att_${Date.now()}`, action: 'markAttendance',
-                        empId: elements.empIdInput.value.trim().toUpperCase(),
-                        name: elements.nameInput.value.trim(),
-                        department: elements.departmentInput.value,
-                        designation: elements.designationInput.value,
-                        locationType: document.querySelector('input[name="location-type"]:checked').value,
-                        imageData: "N/A", status,
-                        timestamp: clientTime.toISOString()
-                    };
-                }
                 saveOffline(dataToSend);
             } finally {
                 toggleButtonLoader(buttonToLoad, false, status);
+                resetForm();
+                handleRecapture();
             }
         }
 
@@ -529,14 +594,13 @@
                 const result = await response.json();
                 if (result.status !== 'success') throw new Error(result.message);
                 showStatus(`Attendance marked as "${data.status}" successfully!`, 'success');
-                resetForm();
             } catch (error) {
                 if (attempt <= state.maxRetries) {
                     showStatus(`Network failed. Retrying... (${attempt}/${state.maxRetries})`, 'warning');
                     await new Promise(resolve => setTimeout(resolve, 2000));
                     await submitDataWithRetry(data, attempt + 1);
                 } else {
-                    showStatus(`Online submission failed after ${state.maxRetries} retries. Saving locally.`, 'error');
+                    showStatus(`Online submission failed. Saving locally.`, 'error');
                     saveOffline(data);
                 }
             }
@@ -548,8 +612,8 @@
             localStorage.setItem('pending_attendance', JSON.stringify(queue));
             showStatus('Offline. Attendance saved locally.', 'info');
             syncOfflineData();
-            resetForm();
         }
+
         function resetForm() {
             elements.empIdInput.value = '';
             elements.nameInput.value = '';
@@ -561,21 +625,14 @@
         async function networkRequest(url, options = {}, timeout = 20000) {
             const controller = new AbortController();
             const id = setTimeout(() => controller.abort(), timeout);
-            
-            const response = await fetch(url, {
-                ...options,
-                signal: controller.signal,
-                redirect: "follow",
-                headers: { "Content-Type": "text/plain;charset=utf-8" }
-            });
-
+            const response = await fetch(url, { ...options, signal: controller.signal, redirect: "follow", headers: { "Content-Type": "text/plain;charset=utf-8" } });
             clearTimeout(id);
             if (!response.ok) throw new Error(`Network error: ${response.status} ${response.statusText}`);
             return response;
         }
 
         function showPendingSyncs() {
-            const queue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
+           const queue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
             elements.pendingList.innerHTML = '';
             if (queue.length === 0) {
                 elements.pendingList.innerHTML = `<li class="text-center text-gray-500 p-4">No pending records.</li>`;
@@ -600,7 +657,7 @@
         }
 
         async function retrySyncItem(retryButton) {
-            const itemId = retryButton.dataset.id;
+         const itemId = retryButton.dataset.id;
             const queue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
             const itemToRetry = queue.find(item => item.id === itemId);
             if (!itemToRetry) return;
@@ -626,7 +683,7 @@
         }
         
         function deleteSyncItem(itemId) {
-            openConfirmationModal('DELETE_PENDING');
+         openConfirmationModal('DELETE_PENDING');
             elements.modalTitle.textContent = 'Delete Record';
             elements.modalBody.innerHTML = 'Are you sure you want to permanently delete this pending record?';
             
@@ -648,36 +705,26 @@
 
         async function handleLeaveSubmit(event) {
             event.preventDefault(); 
-
             const empId = elements.empIdInput.value.trim().toUpperCase();
             const name = elements.nameInput.value.trim();
-
             if (!empId || !name) {
-                showStatus('Please enter a valid Employee ID before applying for leave.', 'warning');
+                showStatus('Please enter your Employee ID before applying for leave.', 'warning');
                 elements.leaveModal.classList.add('hidden');
                 return;
             }
-
             const leaveData = {
                 action: 'requestLeave',
-                empId: empId,
-                name: name,
+                empId, name,
                 leaveType: elements.leaveTypeInput.value,
                 startDate: elements.startDateInput.value,
                 endDate: elements.endDateInput.value,
                 reason: elements.leaveReasonInput.value,
             };
-
             toggleButtonLoader(elements.submitLeaveBtn, true, 'Submit Application');
-
             try {
-                const response = await networkRequest(state.GAS_URL, {
-                    method: 'POST',
-                    body: JSON.stringify(leaveData)
-                });
+                const response = await networkRequest(state.GAS_URL, { method: 'POST', body: JSON.stringify(leaveData) });
                 const result = await response.json();
                 if (result.status !== 'success') throw new Error(result.message);
-                
                 showStatus('Leave application submitted successfully!', 'success');
                 elements.leaveModal.classList.add('hidden');
                 elements.leaveForm.reset();
@@ -694,10 +741,9 @@
             elements.confirmBtn.addEventListener('click', executeAttendance);
             elements.cancelBtn.addEventListener('click', closeConfirmationModal);
             elements.empIdInput.addEventListener('blur', handleIdInput);
-            elements.empIdInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); handleIdInput(); } });
-            document.addEventListener('keydown', e => {
-                if (e.ctrlKey && e.key.toLowerCase() === 'i') { e.preventDefault(); elements.inBtn.click(); }
-                if (e.ctrlKey && e.key.toLowerCase() === 'o') { e.preventDefault(); elements.outBtn.click(); }
+            elements.recaptureBtn.addEventListener('click', handleRecapture);
+            elements.locOutsideRadio.addEventListener('change', (e) => {
+                if (e.target.checked) getLocation();
             });
             elements.switchCameraBtn.addEventListener('click', async () => {
                 state.currentDeviceIndex = (state.currentDeviceIndex + 1) % state.videoDevices.length;
@@ -706,22 +752,10 @@
             elements.torchBtn.addEventListener('click', toggleTorch);
             elements.toggleLocationBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                const isHidden = elements.locationOptionsDiv.classList.toggle('hidden');
-                e.target.textContent = isHidden ? 'Working from Outside?' : 'Hide Location Options';
+                elements.locationOptionsDiv.classList.toggle('hidden');
             });
             elements.statusSync.addEventListener('click', showPendingSyncs);
             elements.closeSyncModalBtn.addEventListener('click', () => elements.pendingSyncModal.classList.add('hidden'));
-            elements.pendingList.addEventListener('click', (event) => {
-                const button = event.target.closest('button');
-                if (!button) return;
-
-                if (button.classList.contains('retry-btn')) {
-                    retrySyncItem(button);
-                } else if (button.classList.contains('delete-btn')) {
-                    const itemId = button.dataset.id;
-                    deleteSyncItem(itemId);
-                }
-            });
             elements.showLeaveModalBtn.addEventListener('click', () => {
                 elements.leaveModal.classList.remove('hidden');
             });
@@ -743,7 +777,6 @@
         }
         
         init();
-
     </script>
 </body>
 </html>
