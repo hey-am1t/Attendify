@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Attendify</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .card { background-color: white; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+        .table-header { position: sticky; top: 0; background-color: #f9fafb; }
+        .loader { border: 4px solid rgba(0,0,0,0.1); border-left-color: #4f46e5; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto space-y-8">
+        <!-- Header -->
+        <header>
+            <h1 class="text-4xl font-bold text-gray-800">Admin Dashboard</h1>
+            <p class="text-gray-500">Welcome back, Admin!</p>
+        </header>
+
+        <!-- Main Content -->
+        <main class="space-y-8">
+            <!-- Live Metrics -->
+            <section id="metrics-section" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="card p-6 flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Total Employees</p>
+                        <p id="total-employees" class="text-3xl font-bold text-gray-800">-</p>
+                    </div>
+                </div>
+                <div class="card p-6 flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Present Today</p>
+                        <p id="present-today" class="text-3xl font-bold text-green-600">-</p>
+                    </div>
+                </div>
+                <div class="card p-6 flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">On Leave Today</p>
+                        <p id="on-leave-today" class="text-3xl font-bold text-yellow-600">-</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Today's View -->
+            <section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="card p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">Employees Present Today</h2>
+                    <ul id="present-list" class="space-y-2 h-64 overflow-y-auto">
+                        <!-- JS will populate this -->
+                    </ul>
+                </div>
+                <div class="card p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">Employees on Leave Today</h2>
+                    <ul id="leave-list" class="space-y-2 h-64 overflow-y-auto">
+                        <!-- JS will populate this -->
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Leave Approval Section -->
+            <section class="card p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">Pending Leave Requests</h2>
+                <div id="pending-leave-table-container" class="overflow-x-auto">
+                    <!-- JS will populate this -->
+                </div>
+            </section>
+
+            <!-- Historical Data Section -->
+            <section class="card p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">Historical Attendance Data</h2>
+                <!-- Filters -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <input type="text" id="name-filter" placeholder="Filter by Name..." class="p-2 border rounded-md">
+                    <select id="year-filter" class="p-2 border rounded-md"></select>
+                    <select id="month-filter" class="p-2 border rounded-md"></select>
+                    <select id="day-filter" class="p-2 border rounded-md"></select>
+                </div>
+                <!-- Data Table -->
+                <div id="attendance-table-container" class="h-96 overflow-y-auto border rounded-lg">
+                    <!-- JS will populate this -->
+                </div>
+            </section>
+        </main>
+        
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
+            <div class="loader"></div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- CONFIGURATION ---
+        const GAS_URL_GET = 'https://script.google.com/macros/s/AKfycbza46T8JSLOWQP3NJ7zrtOKaiZIJ7C2doP_gzcuFRgUNNRZyDCyBvvJ05WTPSKfiL6T/exec?action=getDashboardData';
+        const GAS_URL_POST = 'https://script.google.com/macros/s/AKfycbza46T8JSLOWQP3NJ7zrtOKaiZIJ7C2doP_gzcuFRgUNNRZyDCyBvvJ05WTPSKfiL6T/exec';
+
+        // --- STATE ---
+        let allData = {
+            attendance: [],
+            leave: [],
+            employees: []
+        };
+
+        // --- ELEMENT REFERENCES ---
+        const elements = {
+            loadingOverlay: document.getElementById('loading-overlay'),
+            totalEmployees: document.getElementById('total-employees'),
+            presentToday: document.getElementById('present-today'),
+            onLeaveToday: document.getElementById('on-leave-today'),
+            presentList: document.getElementById('present-list'),
+            leaveList: document.getElementById('leave-list'),
+            pendingLeaveContainer: document.getElementById('pending-leave-table-container'),
+            attendanceContainer: document.getElementById('attendance-table-container'),
+            nameFilter: document.getElementById('name-filter'),
+            yearFilter: document.getElementById('year-filter'),
+            monthFilter: document.getElementById('month-filter'),
+            dayFilter: document.getElementById('day-filter'),
+        };
+
+        // --- DATA FETCHING ---
+        async function fetchData() {
+            try {
+                elements.loadingOverlay.classList.remove('hidden');
+                const response = await fetch(GAS_URL_GET);
+                if (!response.ok) throw new Error('Network response was not ok.');
+                const result = await response.json();
+                if (result.status !== 'success') throw new Error(result.message || 'Failed to fetch data.');
+                
+                allData = result.data;
+                initializeFilters();
+                renderDashboard();
+            } catch (error) {
+                console.error('Fetch Error:', error);
+                alert('Could not load data from Google Sheets. Please check the script URL and sheet permissions.');
+            } finally {
+                elements.loadingOverlay.classList.add('hidden');
+            }
+        }
+
+        async function updateLeaveStatus(leaveId, newStatus) {
+            try {
+                elements.loadingOverlay.classList.remove('hidden');
+                const response = await fetch(GAS_URL_POST, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: 'updateLeaveStatus', leaveId, newStatus }),
+                    redirect: 'follow'
+                });
+                const result = await response.json();
+                if (result.status !== 'success') throw new Error(result.message);
+                
+                alert(`Leave request has been ${newStatus}.`);
+                fetchData(); // Refresh all data
+            } catch (error) {
+                console.error('Update Error:', error);
+                alert('Failed to update leave status.');
+            } finally {
+                elements.loadingOverlay.classList.add('hidden');
+            }
+        }
+
+        // --- RENDERING ---
+        function renderDashboard() {
+            renderMetricsAndTodayLists();
+            renderPendingLeave();
+            renderAttendanceTable();
+        }
+
+        function renderMetricsAndTodayLists() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // Metrics
+            elements.totalEmployees.textContent = allData.employees.length;
+
+            const presentTodayIds = new Set(allData.attendance
+                .filter(att => new Date(att.Timestamp).setHours(0,0,0,0) === today.getTime() && att['Status (IN/OUT)'] === 'IN')
+                .map(att => att['Employee ID'])
+            );
+            elements.presentToday.textContent = presentTodayIds.size;
+
+            const onLeaveTodayIds = new Set(allData.leave
+                .filter(l => {
+                    const startDate = new Date(l.StartDate).setHours(0,0,0,0);
+                    const endDate = new Date(l.EndDate).setHours(0,0,0,0);
+                    return l.Status === 'Approved' && today >= startDate && today <= endDate;
+                })
+                .map(l => l.EmployeeID)
+            );
+            elements.onLeaveToday.textContent = onLeaveTodayIds.size;
+
+            // Today Lists
+            elements.presentList.innerHTML = [...presentTodayIds].map(id => {
+                const emp = allData.employees.find(e => e.EmployeeID === id);
+                return `<li class="text-gray-700">${emp ? emp.FullName : id}</li>`;
+            }).join('') || '<li class="text-gray-400">No one present yet.</li>';
+
+            elements.leaveList.innerHTML = [...onLeaveTodayIds].map(id => {
+                const emp = allData.employees.find(e => e.EmployeeID === id);
+                return `<li class="text-gray-700">${emp ? emp.FullName : id}</li>`;
+            }).join('') || '<li class="text-gray-400">No one on leave.</li>';
+        }
+
+        function renderPendingLeave() {
+            const pending = allData.leave.filter(l => l.Status === 'Pending');
+            if (pending.length === 0) {
+                elements.pendingLeaveContainer.innerHTML = '<p class="text-gray-500">No pending requests.</p>';
+                return;
+            }
+            const tableRows = pending.map(req => {
+                const emp = allData.employees.find(e => e.EmployeeID === req.EmployeeID) || {};
+                return `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-3">${req.EmployeeName}</td>
+                        <td class="p-3">${emp.Department || 'N/A'}</td>
+                        <td class="p-3">${req.LeaveType}</td>
+                        <td class="p-3">${new Date(req.StartDate).toLocaleDateString()}</td>
+                        <td class="p-3">${new Date(req.EndDate).toLocaleDateString()}</td>
+                        <td class="p-3">${req.Reason}</td>
+                        <td class="p-3 space-x-2">
+                            <button data-leave-id="${req.LeaveID}" data-status="Approved" class="approve-btn text-xs bg-green-100 text-green-700 font-semibold px-2 py-1 rounded-md">Approve</button>
+                            <button data-leave-id="${req.LeaveID}" data-status="Rejected" class="reject-btn text-xs bg-red-100 text-red-700 font-semibold px-2 py-1 rounded-md">Reject</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            elements.pendingLeaveContainer.innerHTML = `
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                        <tr>
+                            <th class="p-3">Name</th><th class="p-3">Department</th><th class="p-3">Type</th>
+                            <th class="p-3">Start</th><th class="p-3">End</th><th class="p-3">Reason</th><th class="p-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>${tableRows}</tbody>
+                </table>
+            `;
+        }
+
+        function renderAttendanceTable() {
+            // Apply filters
+            const name = elements.nameFilter.value.toLowerCase();
+            const year = elements.yearFilter.value;
+            const month = elements.monthFilter.value;
+            const day = elements.dayFilter.value;
+
+            const filteredData = allData.attendance.filter(att => {
+                const attDate = new Date(att.Timestamp);
+                const nameMatch = !name || att['Full Name'].toLowerCase().includes(name);
+                const yearMatch = !year || attDate.getFullYear() == year;
+                const monthMatch = !month || (attDate.getMonth() + 1) == month;
+                const dayMatch = !day || attDate.getDate() == day;
+                return nameMatch && yearMatch && monthMatch && dayMatch;
+            });
+
+            if (filteredData.length === 0) {
+                elements.attendanceContainer.innerHTML = '<p class="text-center text-gray-500 p-8">No records match the selected filters.</p>';
+                return;
+            }
+
+            const tableRows = filteredData.map(att => {
+                const statusClass = att['Status (IN/OUT)'] === 'IN' ? 'text-green-600' : 'text-red-600';
+                return `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-3">${att['Full Name']}</td>
+                        <td class="p-3">${att.Department}</td>
+                        <td class="p-3 font-medium ${statusClass}">${att['Status (IN/OUT)']}</td>
+                        <td class="p-3">${new Date(att.Timestamp).toLocaleString()}</td>
+                        <td class="p-3">${att['Location (Lat, Long)'] || 'N/A'}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            elements.attendanceContainer.innerHTML = `
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-gray-700 uppercase table-header">
+                        <tr>
+                            <th class="p-3">Name</th><th class="p-3">Department</th><th class="p-3">Status</th>
+                            <th class="p-3">Timestamp</th><th class="p-3">Location</th>
+                        </tr>
+                    </thead>
+                    <tbody>${tableRows}</tbody>
+                </table>
+            `;
+        }
+
+        // --- FILTERS & EVENT LISTENERS ---
+        function initializeFilters() {
+            const years = [...new Set(allData.attendance.map(att => new Date(att.Timestamp).getFullYear()))].sort((a,b) => b-a);
+            elements.yearFilter.innerHTML = '<option value="">All Years</option>' + years.map(y => `<option>${y}</option>`).join('');
+            updateMonthFilter();
+        }
+
+        function updateMonthFilter() {
+            const year = elements.yearFilter.value;
+            const months = [...new Set(allData.attendance
+                .filter(att => !year || new Date(att.Timestamp).getFullYear() == year)
+                .map(att => new Date(att.Timestamp).getMonth() + 1)
+            )].sort((a,b) => a-b);
+            
+            const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            elements.monthFilter.innerHTML = '<option value="">All Months</option>' + months.map(m => `<option value="${m}">${monthNames[m-1]}</option>`).join('');
+            updateDayFilter();
+        }
+
+        function updateDayFilter() {
+            const year = elements.yearFilter.value;
+            const month = elements.monthFilter.value;
+            const days = [...new Set(allData.attendance
+                .filter(att => (!year || new Date(att.Timestamp).getFullYear() == year) && (!month || new Date(att.Timestamp).getMonth() + 1 == month))
+                .map(att => new Date(att.Timestamp).getDate())
+            )].sort((a,b) => a-b);
+            elements.dayFilter.innerHTML = '<option value="">All Days</option>' + days.map(d => `<option>${d}</option>`).join('');
+        }
+        
+        elements.nameFilter.addEventListener('input', renderAttendanceTable);
+        elements.yearFilter.addEventListener('change', () => { updateMonthFilter(); renderAttendanceTable(); });
+        elements.monthFilter.addEventListener('change', () => { updateDayFilter(); renderAttendanceTable(); });
+        elements.dayFilter.addEventListener('change', renderAttendanceTable);
+
+        document.addEventListener('click', (e) => {
+            const target = e.target;
+            if (target.matches('.approve-btn, .reject-btn')) {
+                const leaveId = target.dataset.leaveId;
+                const status = target.dataset.status;
+                if (confirm(`Are you sure you want to ${status.toLowerCase()} this request?`)) {
+                    updateLeaveStatus(leaveId, status);
+                }
+            }
+        });
+
+        // --- INITIALIZATION ---
+        fetchData();
+    });
+    </script>
+</body>
+</html>
