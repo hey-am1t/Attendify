@@ -741,6 +741,7 @@
             elements.confirmBtn.addEventListener('click', executeAttendance);
             elements.cancelBtn.addEventListener('click', closeConfirmationModal);
             elements.empIdInput.addEventListener('blur', handleIdInput);
+            elements.empIdInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); handleIdInput(); } });
             elements.recaptureBtn.addEventListener('click', handleRecapture);
             elements.locOutsideRadio.addEventListener('change', (e) => {
                 if (e.target.checked) getLocation();
@@ -780,5 +781,6 @@
     </script>
 </body>
 </html>
+
 
 
