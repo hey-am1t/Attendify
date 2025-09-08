@@ -4,111 +4,95 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#4f46e5"/>
-    <meta name="description" content="A smart attendance and leave system with offline capabilities."/>
-    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
-    <title>Attendify By Amit Kumar</title>
+    <meta name="description" content="A smart, AI-powered attendance system with offline support and leave management."/>
+    <title>Attendify - Employee App</title>
+    <!-- Link to Manifest for PWA functionality -->
     <link rel="manifest" href="manifest.json">
+    <!-- Tailwind CSS for modern styling -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- AI Face Detection Library -->
+    <!-- FaceAPI.js for intelligent face detection -->
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <!-- Google Fonts for clean typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
-        .video-container { border: 10px solid white; box-shadow: 0 4px 8px rgba(0,0,0,0.1), 0 6px 20px rgba(0,0,0,0.1); border-radius: 8px; background: #e5e7eb; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; min-height: 240px; }
+        .video-container { border: 10px solid white; box-shadow: 0 4px 8px rgba(0,0,0,0.1), 0 6px 20px rgba(0,0,0,0.1); border-radius: 0.5rem; background: #e5e7eb; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; min-height: 240px; }
         .btn { transition: all 0.2s ease-in-out; }
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-        .btn:active { transform: translateY(0); box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+        .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .btn:active:not(:disabled) { transform: translateY(0); box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+        .btn:disabled { cursor: not-allowed; background-color: #9ca3af; opacity: 0.7; }
         input:read-only { background-color: #f3f4f6; cursor: not-allowed; }
         .btn-loader, .video-loader { border: 4px solid rgba(0,0,0,0.1); border-left-color: #4f46e5; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
         .btn-loader { width: 16px; height: 16px; border-top-color: #ffffff; border-left-color: #ffffff; }
-        .retry-loader { width: 16px; height: 16px; border-top-color: #4f46e5; border-left-color: #4f46e5; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .fade-in { animation: fadeIn 0.5s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        .torch-on { box-shadow: 0 0 15px 5px rgba(255, 255, 0, 0.7); background-color: rgba(255, 255, 150, 0.6) !important; }
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(4px); }
         #status-sync:hover { cursor: pointer; background-color: rgba(0,0,0,0.05); border-radius: 0.5rem; }
-        .main-container { opacity: 0; transition: opacity 0.4s ease-in-out; }
-        #photo-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
 
-    <div class="w-full max-w-md mx-auto bg-white rounded-xl shadow-2xl p-6 md:p-8 space-y-5 main-container">
+    <div class="w-full max-w-md mx-auto bg-white rounded-xl shadow-2xl p-6 md:p-8 space-y-5">
         
-        <header class="text-center relative">
+        <header class="text-center">
             <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Attendify</h1>
             <div id="real-time-clock" class="text-sm text-gray-500 font-medium">--:--:--</div>
         </header>
 
         <div class="flex justify-around items-center bg-slate-100 rounded-lg p-2.5 text-sm font-bold text-gray-700">
-            <div class="flex items-center justify-center w-1/3" title="Network Status"><span id="network-text">--</span></div>
+            <div class="flex items-center justify-center w-1/2" title="Network Status"><span id="network-text">--</span></div>
             <div class="border-l border-gray-300 h-6"></div>
-            <div class="flex items-center justify-center w-1/3" title="Camera Status"><span id="camera-text">--</span></div>
-            <div class="border-l border-gray-300 h-6"></div>
-            <div id="status-sync" class="flex items-center justify-center w-1/3 p-1" title="Click to view pending syncs"><span id="sync-text">--</span></div>
+            <div id="status-sync" class="flex items-center justify-center w-1/2 p-1" title="Click to view pending syncs"><span id="sync-text">--</span></div>
         </div>
 
         <main id="app-content" class="space-y-4">
+            <div id="face-detection-status" class="text-center text-sm font-medium p-2 rounded-lg bg-blue-100 text-blue-700 transition-all">Initializing Camera...</div>
             <div class="video-container">
                 <div id="video-loader" class="video-loader"></div>
-                <video id="camera-feed" autoplay playsinline class="w-full h-auto rounded-sm"></video>
+                <video id="camera-feed" autoplay playsinline class="w-full h-auto rounded-sm hidden"></video>
                 <canvas id="photo-canvas" class="hidden"></canvas>
                 <div class="absolute bottom-3 right-3 flex gap-3">
+                    <button id="recapture-btn" class="p-3 bg-white/60 backdrop-blur-sm rounded-full btn hidden" title="Re-capture Photo"></button>
                     <button id="torch-btn" class="p-3 bg-white/60 backdrop-blur-sm rounded-full btn hidden" title="Toggle Flash/Torch"></button>
                     <button id="switch-camera-btn" class="p-3 bg-white/60 backdrop-blur-sm rounded-full btn hidden" title="Switch Camera"></button>
                 </div>
             </div>
             
-            <div class="text-center">
-                 <button id="recapture-btn" class="w-full bg-yellow-100 text-yellow-800 font-semibold py-2 px-4 rounded-lg btn hidden">Re-capture Photo</button>
-            </div>
-
             <div class="space-y-3">
                 <div>
                     <label for="emp-id" class="block text-sm font-medium text-gray-700 mb-1">Employee ID</label>
                     <input type="text" id="emp-id" placeholder="Loading data..." disabled class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
-                <div class="text-sm text-center">
-                    <a href="#" id="toggle-location-btn" class="text-blue-600 hover:underline">Working from Outside?</a>
-                </div>
-                <div id="location-options-div" class="hidden space-y-2 rounded-lg bg-gray-50 p-3 transition-all duration-300">
-                    <p class="text-sm font-medium text-gray-700">Location Type</p>
-                    <div class="flex items-center space-x-6">
-                        <div class="flex items-center"><input id="loc-inside" name="location-type" type="radio" value="Inside Office" checked class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"><label for="loc-inside" class="ml-2 block text-sm text-gray-900">Inside Office</label></div>
-                        <div class="flex items-center"><input id="loc-outside" name="location-type" type="radio" value="Outside" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"><label for="loc-outside" class="ml-2 block text-sm text-gray-900">Outside</label></div>
-                    </div>
-                </div>
                 <div>
                     <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
                     <input type="text" id="name" placeholder="Auto-filled" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg">
                 </div>
-                 <div>
+                <div class="hidden">
                     <label for="department" class="block text-sm font-medium text-gray-700 mb-1">Department</label>
                     <input type="text" id="department" placeholder="Auto-filled" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg">
                 </div>
-                <div class="hidden"> 
+                 <div>
                     <label for="designation" class="block text-sm font-medium text-gray-700 mb-1">Designation</label>
                     <input type="text" id="designation" placeholder="Auto-filled" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg">
                 </div>
             </div>
 
             <div class="grid grid-cols-2 gap-4">
-                <button id="in-btn" class="w-full bg-green-500 text-white font-bold py-3 px-4 rounded-lg btn flex justify-center items-center" disabled title="Ctrl + I">IN</button>
-                <button id="out-btn" class="w-full bg-red-500 text-white font-bold py-3 px-4 rounded-lg btn flex justify-center items-center" disabled title="Ctrl + O">OUT</button>
+                <button id="in-btn" class="w-full bg-green-500 text-white font-bold py-3 px-4 rounded-lg btn flex justify-center items-center" disabled>IN</button>
+                <button id="out-btn" class="w-full bg-red-500 text-white font-bold py-3 px-4 rounded-lg btn flex justify-center items-center" disabled>OUT</button>
             </div>
-
-            <div class="text-center pt-2">
-                <button id="show-leave-modal-btn" class="w-full bg-indigo-100 text-indigo-700 font-semibold py-2 px-4 rounded-lg btn">Apply for Leave</button>
+             <div class="text-center">
+                <button id="apply-leave-btn" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg btn flex justify-center items-center" disabled>Apply for Leave</button>
             </div>
 
             <div id="status-message" class="text-center text-sm font-medium p-3 rounded-lg hidden fade-in"></div>
         </main>
         
         <footer class="text-center pt-4 border-t border-gray-200">
-            <p class="text-xs text-gray-400">&copy; Amit Kumar 2025 | V18.1</p>
+            <p class="text-xs text-gray-400">&copy; Amit Kumar 2025 | v25.0 Final</p>
         </footer>
     </div>
 
@@ -126,138 +110,121 @@
 
     <!-- Pending Syncs Modal -->
     <div id="pending-sync-modal" class="modal-overlay hidden fade-in">
-        <div class="bg-white w-full max-w-sm rounded-lg shadow-xl p-6 space-y-4">
+        <div class="bg-white w-full max-w-md rounded-lg shadow-xl p-6 space-y-4">
             <div class="flex justify-between items-center">
-                <h3 class="text-lg font-bold text-gray-800">Pending Syncs</h3>
+                <h3 class="text-lg font-bold text-gray-800">Pending Records</h3>
                 <button id="close-sync-modal-btn" class="text-2xl font-light">&times;</button>
             </div>
             <p class="text-xs text-gray-500">These records will be synced automatically when you are online.</p>
             <ul id="pending-list" class="h-48 overflow-y-auto border rounded-lg bg-gray-50 p-2 space-y-2"></ul>
         </div>
     </div>
-
+    
     <!-- Leave Application Modal -->
     <div id="leave-modal" class="modal-overlay hidden fade-in">
-        <div class="bg-white w-full max-w-sm rounded-lg shadow-xl p-6 space-y-4">
+        <div class="bg-white w-full max-w-md rounded-lg shadow-xl p-6 space-y-4">
             <div class="flex justify-between items-center">
-                <h3 class="text-lg font-bold text-gray-800">Leave Application</h3>
+                <h3 class="text-lg font-bold text-gray-800">Apply for Leave</h3>
                 <button id="close-leave-modal-btn" class="text-2xl font-light">&times;</button>
             </div>
-            <form id="leave-form" class="space-y-3 text-left">
+            <form id="leave-form" class="space-y-4">
                 <div>
-                    <label for="leave-type" class="block text-sm font-medium text-gray-700 mb-1">Leave Type</label>
-                    <select id="leave-type" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
-                        <option value="">-- Select Type --</option>
-                        <option value="Sick Leave">Sick Leave</option>
-                        <option value="Casual Leave">Casual Leave</option>
-                        <option value="Vacation">Vacation</option>
-                        <option value="Other">Other</option>
+                    <label for="leave-type" class="block text-sm font-medium text-gray-700">Leave Type</label>
+                    <select id="leave-type" required class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                        <option>Casual Leave</option>
+                        <option>Sick Leave</option>
+                        <option>Earned Leave</option>
+                        <option>Unpaid Leave</option>
                     </select>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label for="start-date" class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                        <input type="date" id="start-date" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
-                    </div>
-                    <div>
-                        <label for="end-date" class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                        <input type="date" id="end-date" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
-                    </div>
+                <div>
+                    <label for="start-date" class="block text-sm font-medium text-gray-700">Start Date</label>
+                    <input type="date" id="start-date" required class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
                 </div>
                 <div>
-                    <label for="leave-reason" class="block text-sm font-medium text-gray-700 mb-1">Reason</label>
-                    <textarea id="leave-reason" rows="3" required placeholder="Briefly explain the reason..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"></textarea>
+                    <label for="end-date" class="block text-sm font-medium text-gray-700">End Date</label>
+                    <input type="date" id="end-date" required class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                </div>
+                <div>
+                    <label for="reason" class="block text-sm font-medium text-gray-700">Reason</label>
+                    <textarea id="reason" rows="3" required class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"></textarea>
                 </div>
                 <div class="pt-2">
-                    <button type="submit" id="submit-leave-btn" class="w-full bg-indigo-600 text-white font-bold py-2.5 px-4 rounded-lg btn flex justify-center items-center">Submit Application</button>
+                    <button type="submit" id="submit-leave-btn" class="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg btn flex justify-center items-center">Submit Request</button>
                 </div>
             </form>
         </div>
     </div>
 
+
     <script>
-        // --- Element References ---
+        // --- CONFIGURATION ---
+        const GAS_URL_GET_EMPLOYEES = 'https://script.google.com/macros/s/AKfycbyxC9G35-ybYkCwnOH6FQIzNCm66Y6qygei1CiAeQ4eb2M0L2mNhnzzvsY2exxN8LwE/exec?action=getEmployees'; // <-- IMPORTANT: PASTE YOUR SCRIPT URL
+        const GAS_URL_POST = 'https://script.google.com/macros/s/AKfycbyxC9G35-ybYkCwnOH6FQIzNCm66Y6qygei1CiAeQ4eb2M0L2mNhnzzvsY2exxN8LwE/exec'; // <-- IMPORTANT: PASTE YOUR SCRIPT URL
+        const FACEAPI_MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights';
+
+        // --- ELEMENT REFERENCES (Meticulously checked against HTML) ---
         const elements = {
-            mainContainer: document.querySelector('.main-container'),
             clock: document.getElementById('real-time-clock'),
             networkText: document.getElementById('network-text'),
-            cameraText: document.getElementById('camera-text'),
             syncText: document.getElementById('sync-text'),
+            faceDetectionStatus: document.getElementById('face-detection-status'),
             video: document.getElementById('camera-feed'),
             videoLoader: document.getElementById('video-loader'),
             canvas: document.getElementById('photo-canvas'),
+            recaptureBtn: document.getElementById('recapture-btn'),
             torchBtn: document.getElementById('torch-btn'),
             switchCameraBtn: document.getElementById('switch-camera-btn'),
-            recaptureBtn: document.getElementById('recapture-btn'),
             empIdInput: document.getElementById('emp-id'),
             nameInput: document.getElementById('name'),
             departmentInput: document.getElementById('department'),
             designationInput: document.getElementById('designation'),
             inBtn: document.getElementById('in-btn'),
             outBtn: document.getElementById('out-btn'),
+            applyLeaveBtn: document.getElementById('apply-leave-btn'),
             statusMessage: document.getElementById('status-message'),
-            toggleLocationBtn: document.getElementById('toggle-location-btn'),
-            locationOptionsDiv: document.getElementById('location-options-div'),
-            locOutsideRadio: document.getElementById('loc-outside'),
-            modal: document.getElementById('confirmation-modal'),
+            confirmationModal: document.getElementById('confirmation-modal'),
             modalTitle: document.getElementById('modal-title'),
             modalBody: document.getElementById('modal-body'),
             confirmBtn: document.getElementById('confirm-btn'),
             cancelBtn: document.getElementById('cancel-btn'),
-            statusSync: document.getElementById('status-sync'),
             pendingSyncModal: document.getElementById('pending-sync-modal'),
             closeSyncModalBtn: document.getElementById('close-sync-modal-btn'),
             pendingList: document.getElementById('pending-list'),
-            showLeaveModalBtn: document.getElementById('show-leave-modal-btn'),
             leaveModal: document.getElementById('leave-modal'),
             closeLeaveModalBtn: document.getElementById('close-leave-modal-btn'),
             leaveForm: document.getElementById('leave-form'),
             submitLeaveBtn: document.getElementById('submit-leave-btn'),
-            leaveTypeInput: document.getElementById('leave-type'),
-            startDateInput: document.getElementById('start-date'),
-            endDateInput: document.getElementById('end-date'),
-            leaveReasonInput: document.getElementById('leave-reason'),
         };
 
-        // --- App State ---
+        // --- APP STATE ---
         const state = {
-            GAS_URL: 'https://script.google.com/macros/s/AKfycbyGcl_YDgEz4-M0CvZZNO55WG7maThiEPIcZ0Hqp0LmHVZEiWOgOu6nvQLxNUq9uuqV/exec',
-            employeeDatabase: {},
-            videoDevices: [],
-            currentDeviceIndex: 0,
-            currentStream: null,
-            isTorchSupported: false,
-            isTorchOn: false,
-            pendingAction: null,
-            maxRetries: 2,
-            faceDetectionInterval: null,
-            isPhotoCaptured: false,
-            currentLocation: { latitude: null, longitude: null },
-        };
-
-        // --- Icons ---
-        const icons = {
-            torchOn: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H4zm.25 11a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zM8 6a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>`,
-            torchOff: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H4zm.25 11a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zM8 5.5a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>`,
-            switchCamera: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1 11.5a.5.5 0 0 0 .5.5h13a.5.5 0 0 0 0-1h-13a.5.5 0 0 0-.5.5zm13.9-8.45a.5.5 0 0 1 0 .707l-2.5 2.5a.5.5 0 0 1-.707 0l-2.5-2.5a.5.5 0 0 1 .707-.707L12 4.793l1.646-1.647a.5.5 0 0 1 .708 0zM1.05 9.25a.5.5 0 0 0 .7.707l2.5-2.5a.5.5 0 0 0 0-.707l-2.5-2.5a.5.5 0 0 0-.7.707L2.793 6.5 1.05 8.243a.5.5 0 0 0 0 .707z"/></svg>`,
+            employeeDatabase: [], videoDevices: [], currentDeviceIndex: 0,
+            currentStream: null, isTorchSupported: false, isTorchOn: false,
+            pendingAction: null, isFaceDetectionReady: false, faceDetectionInterval: null,
         };
         
-        // --- Utility & UI Functions ---
-        function showStatus(message, type = 'info') {
-            elements.statusMessage.textContent = message;
-            elements.statusMessage.className = 'text-center text-sm font-medium p-3 rounded-lg fade-in'; // Reset classes
-            switch (type) {
-                case 'error': elements.statusMessage.classList.add('bg-red-100', 'text-red-700'); break;
-                case 'warning': elements.statusMessage.classList.add('bg-yellow-100', 'text-yellow-700'); break;
-                case 'success': elements.statusMessage.classList.add('bg-green-100', 'text-green-700'); break;
-                default: elements.statusMessage.classList.add('bg-blue-100', 'text-blue-700'); break;
-            }
-        }
+        // --- ICONS ---
+        const icons = {
+             recapture: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16"><path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/></svg>`,
+             torchOn: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H4zm.25 11a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zM8 6a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>`,
+             torchOff: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H4zm.25 11a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zm1.5 0a.25.25 0 0 1-.25-.25v-1.5a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25h-.5zM8 5.5a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>`,
+             switchCamera: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1 11.5a.5.5 0 0 0 .5.5h13a.5.5 0 0 0 0-1h-13a.5.5 0 0 0-.5.5zm13.9-8.45a.5.5 0 0 1 0 .707l-2.5 2.5a.5.5 0 0 1-.707 0l-2.5-2.5a.5.5 0 0 1 .707-.707L12 4.793l1.646-1.647a.5.5 0 0 1 .708 0zM1.05 9.25a.5.5 0 0 0 .7.707l2.5-2.5a.5.5 0 0 0 0-.707l-2.5-2.5a.5.5 0 0 0-.7.707L2.793 6.5 1.05 8.243a.5.5 0 0 0 0 .707z"/></svg>`,
+        };
 
-        function updateStatusBar(component, text, colorClass) {
-            const textEl = elements[`${component}Text`];
-            textEl.textContent = text;
-            textEl.className = `status-bar-text ${colorClass || 'text-gray-700'}`;
+        // --- UTILITY & UI FUNCTIONS ---
+        function showStatus(message, type = 'info', duration = 4000) {
+            elements.statusMessage.textContent = message;
+            elements.statusMessage.classList.remove('hidden', 'bg-blue-100', 'text-blue-700', 'bg-red-100', 'text-red-700', 'bg-yellow-100', 'text-yellow-700', 'bg-green-100', 'text-green-700');
+            let bgColor, textColor;
+            switch (type) {
+                case 'error': bgColor = 'bg-red-100'; textColor = 'text-red-700'; break;
+                case 'warning': bgColor = 'bg-yellow-100'; textColor = 'text-yellow-700'; break;
+                case 'success': bgColor = 'bg-green-100'; textColor = 'text-green-700'; break;
+                default: bgColor = 'bg-blue-100'; textColor = 'text-blue-700'; break;
+            }
+            elements.statusMessage.classList.add(bgColor, textColor);
+            setTimeout(() => { if(elements.statusMessage.textContent === message) elements.statusMessage.classList.add('hidden')}, duration);
         }
 
         function toggleButtonLoader(button, isLoading, originalText) {
@@ -270,21 +237,23 @@
             }
         }
         
-        // --- Core Logic ---
+        // --- CLOCK (Shows local time, official timestamp is from server) ---
         function startClock() {
             setInterval(() => {
-                const now = new Date();
-                elements.clock.textContent = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                elements.clock.textContent = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             }, 1000);
         }
-        
+
+        // --- OFFLINE & SYNC LOGIC ---
         function handleNetworkStatus() {
             const update = () => {
                 if (navigator.onLine) {
-                    updateStatusBar('network', 'Online', 'text-green-600');
+                    elements.networkText.textContent = 'Online';
+                    elements.networkText.className = 'text-green-600';
                     syncOfflineData();
                 } else {
-                    updateStatusBar('network', 'Offline', 'text-red-600');
+                    elements.networkText.textContent = 'Offline';
+                    elements.networkText.className = 'text-red-600';
                     showStatus('You are offline. Data will be saved locally.', 'warning');
                 }
             };
@@ -293,101 +262,183 @@
             window.addEventListener('offline', update);
         }
 
-        async function syncOfflineData() {
-            let queue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
-            if (queue.length === 0) {
-                updateStatusBar('sync', 'Synced', 'text-green-600');
-                return;
+        function getOfflineQueue() {
+            return JSON.parse(localStorage.getItem('attendance_queue')) || [];
+        }
+
+        function saveToOfflineQueue(data) {
+            const queue = getOfflineQueue();
+            queue.push(data);
+            localStorage.setItem('attendance_queue', JSON.stringify(queue));
+            updateSyncStatus();
+        }
+
+        function updateSyncStatus() {
+            const queue = getOfflineQueue();
+            if (queue.length > 0) {
+                elements.syncText.textContent = `Pending: ${queue.length}`;
+                elements.syncText.className = 'text-yellow-600';
+            } else {
+                elements.syncText.textContent = 'Synced';
+                elements.syncText.className = 'text-green-600';
             }
-            updateStatusBar('sync', `Syncing: ${queue.length}`, 'text-blue-600');
+        }
+
+        async function syncOfflineData() {
+            let queue = getOfflineQueue();
+            if (queue.length === 0) return;
             
-            const successfullySyncedIds = [];
-            for (const data of queue) {
+            elements.syncText.textContent = `Syncing: ${queue.length}`;
+            elements.syncText.className = 'text-blue-600';
+
+            const successfullySyncedIds = new Set();
+            for (const item of queue) {
                 try {
-                    const response = await networkRequest(state.GAS_URL, { method: 'POST', body: JSON.stringify(data) });
+                    const response = await fetch(GAS_URL_POST, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify(item),
+                        redirect: 'follow'
+                    });
+                    if (!response.ok) throw new Error(`Server error: ${response.status}`);
                     const result = await response.json();
                     if (result.status === 'success') {
-                        successfullySyncedIds.push(data.id);
+                        successfullySyncedIds.add(item.id);
                     } else { throw new Error(result.message); }
                 } catch (error) {
-                    console.error('Failed to sync item:', data.id, error);
-                    updateStatusBar('sync', 'Sync Failed', 'text-red-600');
+                    console.error('Sync failed for item:', item.id, error);
+                    elements.syncText.textContent = 'Sync Failed';
+                    elements.syncText.className = 'text-red-600';
                     showStatus('Sync failed. Will retry later.', 'error');
                     break; 
                 }
             }
 
-            if (successfullySyncedIds.length > 0) {
-                let currentQueue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
-                let newQueue = currentQueue.filter(item => !successfullySyncedIds.includes(item.id));
-                localStorage.setItem('pending_attendance', JSON.stringify(newQueue));
+            if (successfullySyncedIds.size > 0) {
+                let newQueue = queue.filter(item => !successfullySyncedIds.has(item.id));
+                localStorage.setItem('attendance_queue', JSON.stringify(newQueue));
             }
-            
-            const remaining = (JSON.parse(localStorage.getItem('pending_attendance')) || []).length;
-            if(remaining === 0) {
-                 updateStatusBar('sync', 'Synced', 'text-green-600');
-            } else {
-                 updateStatusBar('sync', `Pending: ${remaining}`, 'text-yellow-600');
-            }
+            updateSyncStatus();
         }
         
+        // --- CAMERA & FACE DETECTION ---
+        async function loadFaceApiModels() {
+            try {
+                updateFaceDetectionStatus('Loading AI models...', 'info');
+                await Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri(FACEAPI_MODEL_URL),
+                ]);
+                state.isFaceDetectionReady = true;
+                updateFaceDetectionStatus('Ready to Scan. Please look at the camera.', 'info');
+                startFaceDetection();
+            } catch (error) {
+                console.error("Error loading face models:", error);
+                updateFaceDetectionStatus('Face detection failed to load.', 'error');
+            }
+        }
+
+        function startFaceDetection() {
+            if (state.faceDetectionInterval) clearInterval(state.faceDetectionInterval);
+            state.faceDetectionInterval = setInterval(async () => {
+                if (!elements.video.paused && state.isFaceDetectionReady) {
+                    const detections = await faceapi.detectAllFaces(elements.video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.5 }));
+                    if (detections.length === 1) {
+                        elements.video.pause();
+                        clearInterval(state.faceDetectionInterval);
+                        updateFaceDetectionStatus('Face detected! Ready to mark attendance.', 'success');
+                        if (elements.empIdInput.value) {
+                           elements.inBtn.disabled = false;
+                           elements.outBtn.disabled = false;
+                        }
+                        elements.recaptureBtn.classList.remove('hidden');
+                    } else if (detections.length > 1) {
+                         updateFaceDetectionStatus('Multiple faces detected. Please ensure only one person is visible.', 'warning');
+                    } else {
+                         updateFaceDetectionStatus('Looking for a face...', 'info');
+                    }
+                }
+            }, 1000);
+        }
+
+        function recapture() {
+            elements.video.play();
+            elements.inBtn.disabled = true;
+            elements.outBtn.disabled = true;
+            elements.recaptureBtn.classList.add('hidden');
+            startFaceDetection();
+        }
+
+        function updateFaceDetectionStatus(message, type) {
+            elements.faceDetectionStatus.classList.remove('bg-blue-100', 'text-blue-700', 'bg-red-100', 'text-red-700', 'bg-yellow-100', 'text-yellow-700', 'bg-green-100', 'text-green-700');
+            let bgColor, textColor;
+             switch (type) {
+                case 'error': bgColor = 'bg-red-100'; textColor = 'text-red-700'; break;
+                case 'warning': bgColor = 'bg-yellow-100'; textColor = 'text-yellow-700'; break;
+                case 'success': bgColor = 'bg-green-100'; textColor = 'text-green-700'; break;
+                default: bgColor = 'bg-blue-100'; textColor = 'text-blue-700'; break;
+            }
+            elements.faceDetectionStatus.classList.add(bgColor, textColor);
+            elements.faceDetectionStatus.textContent = message;
+        }
+
         async function initializeCamera() {
-            updateStatusBar('camera', 'Starting...', 'text-yellow-600');
             elements.videoLoader.classList.remove('hidden');
-            elements.video.classList.remove('hidden');
-            
             if (!navigator.mediaDevices?.getUserMedia) {
-                updateStatusBar('camera', 'No Camera', 'text-red-600');
-                showStatus('Error: This device does not have a camera.', 'error');
+                updateFaceDetectionStatus('Camera not supported on this device.', 'error');
                 elements.videoLoader.classList.add('hidden');
                 return;
             }
             try {
-                updateStatusBar('camera', 'Loading AI...', 'text-yellow-600');
-                await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights');
-                
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 state.videoDevices = devices.filter(d => d.kind === 'videoinput');
                 if (state.videoDevices.length > 1) elements.switchCameraBtn.classList.remove('hidden');
                 await startStream();
             } catch (error) {
-                elements.videoLoader.classList.add('hidden');
-                updateStatusBar('camera', 'Error', 'text-red-600');
-                showStatus('Error: Could not initialize camera or AI models.', 'error');
+                handleCameraError(error);
             }
         }
 
         async function startStream() {
-            if (state.currentStream) {
-                state.currentStream.getTracks().forEach(track => track.stop());
-            }
-            const constraints = { video: { deviceId: state.videoDevices.length ? state.videoDevices[state.currentDeviceIndex].deviceId : undefined } };
+            if (state.currentStream) state.currentStream.getTracks().forEach(track => track.stop());
+            const constraints = { video: { deviceId: state.videoDevices.length ? { exact: state.videoDevices[state.currentDeviceIndex].deviceId } : undefined } };
             try {
                 state.currentStream = await navigator.mediaDevices.getUserMedia(constraints);
                 elements.video.srcObject = state.currentStream;
-                elements.video.onplaying = () => {
-                    elements.videoLoader.classList.add('hidden');
-                    updateStatusBar('camera', 'Detecting Face...', 'text-blue-600');
-                    startFaceDetection();
-                };
-                checkTorchSupport();
-            } catch (error) {
+                await elements.video.play();
                 elements.videoLoader.classList.add('hidden');
-                updateStatusBar('camera', 'Error', 'text-red-600');
-                showStatus('Error: Could not start the camera.', 'error');
+                elements.video.classList.remove('hidden');
+                checkTorchSupport();
+                if (!state.isFaceDetectionReady) {
+                    loadFaceApiModels();
+                } else {
+                    startFaceDetection();
+                }
+            } catch (error) {
+                handleCameraError(error);
             }
         }
         
-        // FIXED: Added missing checkTorchSupport and toggleTorch functions
-        function checkTorchSupport() {
+        function handleCameraError(error) {
+            elements.videoLoader.classList.add('hidden');
+            let message = 'Error: Could not access camera.';
+            if (error.name === "NotAllowedError") {
+                message = 'Error: Camera permission denied. Please allow camera access.';
+            } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+                message = 'Error: No camera found on this device.';
+            }
+            updateFaceDetectionStatus(message, 'error');
+        }
+        
+        async function checkTorchSupport() {
             if (!state.currentStream) return;
-            const track = state.currentStream.getVideoTracks()[0];
-            if (track.getCapabilities) {
+            try {
+                const track = state.currentStream.getVideoTracks()[0];
                 const capabilities = track.getCapabilities();
                 state.isTorchSupported = !!capabilities.torch;
-                if (state.isTorchSupported) {
-                    elements.torchBtn.classList.remove('hidden');
-                }
+                elements.torchBtn.classList.toggle('hidden', !state.isTorchSupported);
+            } catch (e) {
+                state.isTorchSupported = false;
+                elements.torchBtn.classList.add('hidden');
             }
         }
 
@@ -402,337 +453,198 @@
                 showStatus('Could not control torch.', 'error');
             }
         }
-
-        function startFaceDetection() {
-            state.isPhotoCaptured = false;
-            if (state.faceDetectionInterval) clearInterval(state.faceDetectionInterval);
-
-            state.faceDetectionInterval = setInterval(async () => {
-                if (elements.video.paused) return;
-                const detections = await faceapi.detectAllFaces(elements.video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.5 }));
-                
-                if (detections.length > 0 && !state.isPhotoCaptured) {
-                    clearInterval(state.faceDetectionInterval);
-                    state.isPhotoCaptured = true;
-                    capturePhoto();
-                }
-            }, 500);
-        }
-
-        function capturePhoto() {
-            elements.video.pause();
-            const context = elements.canvas.getContext('2d');
-            elements.canvas.width = elements.video.videoWidth;
-            elements.canvas.height = elements.video.videoHeight;
-            context.drawImage(elements.video, 0, 0, elements.canvas.width, elements.canvas.height);
-            
-            elements.canvas.classList.remove('hidden');
-            elements.recaptureBtn.classList.remove('hidden');
-            updateStatusBar('camera', 'Face Captured!', 'text-green-600');
-            showStatus('Photo captured. You can now mark your attendance.', 'success');
-            
-            elements.inBtn.disabled = false;
-            elements.outBtn.disabled = false;
-        }
-
-        function handleRecapture() {
-            clearInterval(state.faceDetectionInterval);
-            state.isPhotoCaptured = false;
-            elements.canvas.classList.add('hidden');
-            elements.recaptureBtn.classList.add('hidden');
-            elements.inBtn.disabled = true;
-            elements.outBtn.disabled = true;
-            elements.video.play().then(() => {
-                updateStatusBar('camera', 'Detecting Face...', 'text-blue-600');
-                startFaceDetection();
-            });
-        }
-
-        function getLocation() {
-            if ('geolocation' in navigator) {
-                showStatus('Getting your location...', 'info');
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        state.currentLocation.latitude = position.coords.latitude;
-                        state.currentLocation.longitude = position.coords.longitude;
-                        showStatus('Location captured successfully.', 'success');
-                    },
-                    () => {
-                        showStatus('Location permission denied. Location will be marked N/A.', 'warning');
-                    },
-                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                );
-            } else {
-                showStatus('Geolocation is not supported by your browser.', 'error');
-            }
-        }
         
+        // --- CORE APPLICATION LOGIC ---
         async function fetchEmployeeData() {
-            const cachedData = localStorage.getItem('employee_database');
-            if (cachedData) {
-                state.employeeDatabase = JSON.parse(cachedData);
-                enableInputs();
-                showStatus('Using cached employee data. Fetching latest in background...', 'info');
-            }
-            
-            if (!navigator.onLine) {
-                if(!cachedData) showStatus('Offline and no employee data found. Please connect to the internet.', 'error');
-                return;
-            }
-
             try {
-                const response = await networkRequest(state.GAS_URL + "?action=getEmployees");
-                state.employeeDatabase = await response.json();
-                localStorage.setItem('employee_database', JSON.stringify(state.employeeDatabase));
+                const response = await fetch(GAS_URL_GET_EMPLOYEES);
+                if (!response.ok) throw new Error('Network error fetching employees');
+                const result = await response.json();
+                if (result.status !== 'success') throw new Error(result.message);
+                state.employeeDatabase = result.data;
                 enableInputs();
-                if(cachedData) showStatus('Employee data updated.', 'success');
             } catch (error) {
-                showStatus(`Could not fetch latest data: ${error.message}`, 'error');
-                if (!cachedData) elements.empIdInput.placeholder = 'Loading failed';
+                showStatus(`Could not load employee data: ${error.message}`, 'error');
+                elements.empIdInput.placeholder = 'Loading failed';
             }
         }
 
         function enableInputs() {
             elements.empIdInput.disabled = false;
-            elements.empIdInput.placeholder = 'e.g., EMP001';
+            elements.empIdInput.placeholder = 'Enter your Employee ID';
         }
         
         function handleIdInput() {
             const empId = elements.empIdInput.value.trim().toUpperCase();
-            if (!empId) return;
-            const employee = state.employeeDatabase[empId];
+            const employee = empId ? state.employeeDatabase.find(emp => emp.EmployeeID === empId) : null;
+            
             if (employee) {
-                elements.nameInput.value = employee.name;
-                elements.departmentInput.value = employee.department;
-                elements.designationInput.value = employee.designation;
-                showStatus('Employee found. Ready for attendance.', 'info');
+                elements.nameInput.value = employee.FullName;
+                elements.departmentInput.value = employee.Department;
+                elements.designationInput.value = employee.Designation;
+                elements.applyLeaveBtn.disabled = false;
+                if (elements.video.paused) { 
+                    elements.inBtn.disabled = false;
+                    elements.outBtn.disabled = false;
+                }
             } else {
                 elements.nameInput.value = '';
                 elements.departmentInput.value = '';
                 elements.designationInput.value = '';
-                showStatus('Employee ID not found.', 'error');
+                elements.applyLeaveBtn.disabled = true;
+                elements.inBtn.disabled = true;
+                elements.outBtn.disabled = true;
+                if(empId) showStatus('Employee ID not found.', 'warning');
             }
+        }
+
+        function getMandatoryLocation() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    return reject(new Error("Geolocation is not supported by this browser."));
+                }
+                showStatus("Getting your location...", "info", 10000);
+                navigator.geolocation.getCurrentPosition(
+                    (position) => resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
+                    (error) => reject(new Error("Could not get location. Please enable location services.")),
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            });
         }
 
         function openConfirmationModal(status) {
-            const empId = elements.empIdInput.value.trim().toUpperCase();
-            const name = elements.nameInput.value.trim();
-            if (!empId || !name) {
-                showStatus('Please enter a valid Employee ID first.', 'warning');
-                elements.empIdInput.focus();
-                return;
-            }
-             if (!state.isPhotoCaptured) {
-                showStatus('Please wait for photo to be captured.', 'warning');
-                return;
-            }
-            
             state.pendingAction = status;
-            elements.modalTitle.textContent = `Confirm Check-${status}`;
-            elements.modalBody.innerHTML = `Are you sure you want to mark <strong class="text-indigo-600">${name}</strong> as <strong class="font-bold">${status}</strong>?`;
-            elements.modal.classList.remove('hidden');
+            elements.modalTitle.textContent = `Confirm Mark ${status}`;
+            elements.modalBody.innerHTML = `Are you sure you want to mark attendance for <strong class="text-indigo-600">${elements.nameInput.value}</strong>?`;
+            elements.confirmationModal.classList.remove('hidden');
         }
 
         function closeConfirmationModal() {
-            elements.modal.classList.add('hidden');
+            elements.confirmationModal.classList.add('hidden');
             state.pendingAction = null;
         }
 
         async function executeAttendance() {
             const status = state.pendingAction;
-            if (!status || !state.isPhotoCaptured) return;
-            
+            if (!status) return;
             closeConfirmationModal();
             const buttonToLoad = (status === 'IN') ? elements.inBtn : elements.outBtn;
             toggleButtonLoader(buttonToLoad, true, status);
 
-            let dataToSend;
-            const clientTime = new Date();
-
             try {
+                const location = await getMandatoryLocation();
+                
                 const context = elements.canvas.getContext('2d');
-                const timestampText = clientTime.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
-                context.font = '24px Inter';
-                context.fillStyle = 'white';
-                context.strokeStyle = 'black';
-                context.lineWidth = 4;
-                context.strokeText(timestampText, 20, elements.canvas.height - 20);
-                context.fillText(timestampText, 20, elements.canvas.height - 20);
-                
-                const imageData = elements.canvas.toDataURL('image/jpeg', 0.75);
-                
-                const locationType = document.querySelector('input[name="location-type"]:checked').value;
-                dataToSend = {
-                    id: `att_${Date.now()}`,
+                elements.canvas.width = elements.video.videoWidth;
+                elements.canvas.height = elements.video.videoHeight;
+                context.drawImage(elements.video, 0, 0, elements.canvas.width, elements.canvas.height);
+                const imageData = elements.canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+
+                const dataToSend = {
+                    id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                     action: 'markAttendance',
                     empId: elements.empIdInput.value.trim().toUpperCase(),
                     name: elements.nameInput.value.trim(),
-                    imageData: imageData.split(',')[1],
-                    status,
-                    locationType,
-                    latitude: locationType === 'Outside' ? state.currentLocation.latitude : null,
-                    longitude: locationType === 'Outside' ? state.currentLocation.longitude : null,
+                    imageData,
+                    latitude: location.latitude,
+                    longitude: location.longitude,
                 };
-                await submitDataWithRetry(dataToSend);
+
+                if (navigator.onLine) {
+                    await submitData(dataToSend);
+                } else {
+                    saveToOfflineQueue(dataToSend);
+                    showStatus('Offline. Attendance saved locally.', 'info');
+                    resetForm();
+                }
             } catch (error) {
-                showStatus(`An error occurred: ${error.message}. Saving locally.`, 'warning');
-                saveOffline(dataToSend);
+                showStatus(error.message, 'error');
             } finally {
                 toggleButtonLoader(buttonToLoad, false, status);
-                resetForm();
-                handleRecapture();
+                recapture();
             }
         }
-
-        async function submitDataWithRetry(data, attempt = 1) {
-            if (!navigator.onLine) {
-                saveOffline(data);
-                return;
-            }
-            try {
-                const response = await networkRequest(state.GAS_URL, { method: 'POST', body: JSON.stringify(data) });
+        
+        async function submitData(data) {
+             try {
+                const response = await fetch(GAS_URL_POST, {
+                    method: 'POST', body: JSON.stringify(data), redirect: 'follow',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                });
+                if (!response.ok) throw new Error(`Server responded with status ${response.status}`);
                 const result = await response.json();
                 if (result.status !== 'success') throw new Error(result.message);
-                showStatus(`Attendance marked as "${data.status}" successfully!`, 'success');
+                showStatus(`Attendance marked! It will be processed shortly.`, 'success');
+                resetForm();
+                syncOfflineData();
             } catch (error) {
-                if (attempt <= state.maxRetries) {
-                    showStatus(`Network failed. Retrying... (${attempt}/${state.maxRetries})`, 'warning');
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                    await submitDataWithRetry(data, attempt + 1);
-                } else {
-                    showStatus(`Online submission failed. Saving locally.`, 'error');
-                    saveOffline(data);
-                }
+                showStatus(`Submission Failed: ${error.message}. Saving locally.`, 'warning');
+                saveToOfflineQueue(data);
+                resetForm();
             }
         }
+        
+        async function handleLeaveRequest(event) {
+            event.preventDefault();
+            toggleButtonLoader(elements.submitLeaveBtn, true, 'Submit Request');
+            
+            const dataToSend = {
+                action: 'applyForLeave',
+                empId: elements.empIdInput.value.trim().toUpperCase(),
+                name: elements.nameInput.value.trim(),
+                leaveType: document.getElementById('leave-type').value,
+                startDate: document.getElementById('start-date').value,
+                endDate: document.getElementById('end-date').value,
+                reason: document.getElementById('reason').value
+            };
 
-        function saveOffline(data) {
-            const queue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
-            queue.push(data);
-            localStorage.setItem('pending_attendance', JSON.stringify(queue));
-            showStatus('Offline. Attendance saved locally.', 'info');
-            syncOfflineData();
+            if (!dataToSend.startDate || !dataToSend.endDate || !dataToSend.reason) {
+                showStatus('Please fill all leave application fields.', 'warning');
+                toggleButtonLoader(elements.submitLeaveBtn, false, 'Submit Request');
+                return;
+            }
+
+            try {
+                 const response = await fetch(GAS_URL_POST, {
+                    method: 'POST', body: JSON.stringify(dataToSend), redirect: 'follow',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                });
+                if (!response.ok) throw new Error(`Server responded with status ${response.status}`);
+                const result = await response.json();
+                if (result.status !== 'success') throw new Error(result.message);
+                showStatus('Leave request submitted successfully!', 'success');
+                elements.leaveForm.reset();
+                elements.leaveModal.classList.add('hidden');
+            } catch (error) {
+                showStatus(`Submission Failed: ${error.message}`, 'error');
+            } finally {
+                toggleButtonLoader(elements.submitLeaveBtn, false, 'Submit Request');
+            }
         }
-
+        
         function resetForm() {
             elements.empIdInput.value = '';
-            elements.nameInput.value = '';
-            elements.departmentInput.value = '';
-            elements.designationInput.value = '';
+            handleIdInput();
             elements.empIdInput.focus();
         }
         
-        async function networkRequest(url, options = {}, timeout = 20000) {
-            const controller = new AbortController();
-            const id = setTimeout(() => controller.abort(), timeout);
-            const response = await fetch(url, { ...options, signal: controller.signal, redirect: "follow", headers: { "Content-Type": "text/plain;charset=utf-8" } });
-            clearTimeout(id);
-            if (!response.ok) throw new Error(`Network error: ${response.status} ${response.statusText}`);
-            return response;
-        }
-
         function showPendingSyncs() {
-           const queue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
+            const queue = getOfflineQueue();
             elements.pendingList.innerHTML = '';
             if (queue.length === 0) {
                 elements.pendingList.innerHTML = `<li class="text-center text-gray-500 p-4">No pending records.</li>`;
             } else {
                 queue.forEach(item => {
                     const li = document.createElement('li');
-                    li.className = 'p-2 bg-white rounded shadow-sm text-sm flex justify-between items-center';
-                    li.innerHTML = `
-                        <div>
-                            <div class="font-bold">${item.name} (${item.empId})</div>
-                            <div class="text-xs text-gray-600">${item.status} at ${new Date(item.timestamp).toLocaleTimeString()}</div>
-                        </div>
-                        <div class="flex gap-2">
-                            <button data-id="${item.id}" class="retry-btn text-xs bg-indigo-100 text-indigo-700 font-semibold px-2 py-1 rounded-md btn">Retry</button>
-                            <button data-id="${item.id}" class="delete-btn text-xs bg-red-100 text-red-700 font-semibold px-2 py-1 rounded-md btn">Delete</button>
-                        </div>
-                    `;
+                    li.className = 'p-2 bg-white rounded shadow-sm text-sm';
+                    li.innerHTML = `<div>
+                        <div class="font-bold">${item.name} (${item.empId})</div>
+                        <div class="text-xs text-gray-600">Saved at ${new Date(parseInt(item.id.split('_')[1])).toLocaleTimeString()}</div>
+                        </div>`;
                     elements.pendingList.appendChild(li);
                 });
             }
             elements.pendingSyncModal.classList.remove('hidden');
-        }
-
-        async function retrySyncItem(retryButton) {
-         const itemId = retryButton.dataset.id;
-            const queue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
-            const itemToRetry = queue.find(item => item.id === itemId);
-            if (!itemToRetry) return;
-
-            retryButton.disabled = true;
-            retryButton.innerHTML = `<div class="retry-loader btn-loader"></div>`;
-
-            try {
-                const response = await networkRequest(state.GAS_URL, { method: 'POST', body: JSON.stringify(itemToRetry) });
-                const result = await response.json();
-                if (result.status !== 'success') throw new Error(result.message);
-                
-                showStatus(`Record for ${itemToRetry.name} synced successfully!`, 'success');
-                const newQueue = queue.filter(item => item.id !== itemId);
-                localStorage.setItem('pending_attendance', JSON.stringify(newQueue));
-                showPendingSyncs();
-                syncOfflineData();
-            } catch (error) {
-                showStatus(`Retry failed: ${error.message}`, 'error');
-                retryButton.disabled = false;
-                retryButton.textContent = 'Retry';
-            }
-        }
-        
-        function deleteSyncItem(itemId) {
-         openConfirmationModal('DELETE_PENDING');
-            elements.modalTitle.textContent = 'Delete Record';
-            elements.modalBody.innerHTML = 'Are you sure you want to permanently delete this pending record?';
-            
-            const confirmDelete = () => {
-                let queue = JSON.parse(localStorage.getItem('pending_attendance')) || [];
-                const newQueue = queue.filter(item => item.id !== itemId);
-                localStorage.setItem('pending_attendance', JSON.stringify(newQueue));
-                showStatus('Pending record deleted.', 'success');
-                showPendingSyncs();
-                syncOfflineData();
-                closeConfirmationModal();
-                elements.confirmBtn.removeEventListener('click', confirmDelete);
-                elements.confirmBtn.addEventListener('click', executeAttendance);
-            };
-            
-            elements.confirmBtn.removeEventListener('click', executeAttendance);
-            elements.confirmBtn.addEventListener('click', confirmDelete, { once: true });
-        }
-
-        async function handleLeaveSubmit(event) {
-            event.preventDefault(); 
-            const empId = elements.empIdInput.value.trim().toUpperCase();
-            const name = elements.nameInput.value.trim();
-            if (!empId || !name) {
-                showStatus('Please enter your Employee ID before applying for leave.', 'warning');
-                elements.leaveModal.classList.add('hidden');
-                return;
-            }
-            const leaveData = {
-                action: 'requestLeave',
-                empId, name,
-                leaveType: elements.leaveTypeInput.value,
-                startDate: elements.startDateInput.value,
-                endDate: elements.endDateInput.value,
-                reason: elements.leaveReasonInput.value,
-            };
-            toggleButtonLoader(elements.submitLeaveBtn, true, 'Submit Application');
-            try {
-                const response = await networkRequest(state.GAS_URL, { method: 'POST', body: JSON.stringify(leaveData) });
-                const result = await response.json();
-                if (result.status !== 'success') throw new Error(result.message);
-                showStatus('Leave application submitted successfully!', 'success');
-                elements.leaveModal.classList.add('hidden');
-                elements.leaveForm.reset();
-            } catch (error) {
-                showStatus(`Submission failed: ${error.message}`, 'error');
-            } finally {
-                toggleButtonLoader(elements.submitLeaveBtn, false, 'Submit Application');
-            }
         }
 
         function addEventListeners() {
@@ -740,47 +652,42 @@
             elements.outBtn.addEventListener('click', () => openConfirmationModal('OUT'));
             elements.confirmBtn.addEventListener('click', executeAttendance);
             elements.cancelBtn.addEventListener('click', closeConfirmationModal);
-            elements.empIdInput.addEventListener('blur', handleIdInput);
-            elements.empIdInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); handleIdInput(); } });
-            elements.recaptureBtn.addEventListener('click', handleRecapture);
-            elements.locOutsideRadio.addEventListener('change', (e) => {
-                if (e.target.checked) getLocation();
-            });
+            elements.empIdInput.addEventListener('input', handleIdInput);
+            elements.empIdInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); elements.empIdInput.blur(); } });
+            
             elements.switchCameraBtn.addEventListener('click', async () => {
                 state.currentDeviceIndex = (state.currentDeviceIndex + 1) % state.videoDevices.length;
+                recapture(); // Reset face detection on camera switch
                 await startStream();
             });
             elements.torchBtn.addEventListener('click', toggleTorch);
-            elements.toggleLocationBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                elements.locationOptionsDiv.classList.toggle('hidden');
-            });
+            elements.recaptureBtn.addEventListener('click', recapture);
+            
             elements.statusSync.addEventListener('click', showPendingSyncs);
             elements.closeSyncModalBtn.addEventListener('click', () => elements.pendingSyncModal.classList.add('hidden'));
-            elements.showLeaveModalBtn.addEventListener('click', () => {
-                elements.leaveModal.classList.remove('hidden');
-            });
+
+            elements.applyLeaveBtn.addEventListener('click', () => elements.leaveModal.classList.remove('hidden'));
             elements.closeLeaveModalBtn.addEventListener('click', () => {
                 elements.leaveModal.classList.add('hidden');
+                elements.leaveForm.reset();
             });
-            elements.leaveForm.addEventListener('submit', handleLeaveSubmit);
+            elements.leaveForm.addEventListener('submit', handleLeaveRequest);
         }
 
         function init() {
+            elements.recaptureBtn.innerHTML = icons.recapture;
             elements.torchBtn.innerHTML = icons.torchOff;
             elements.switchCameraBtn.innerHTML = icons.switchCamera;
             startClock();
             handleNetworkStatus();
+            updateSyncStatus();
             initializeCamera();
             fetchEmployeeData();
             addEventListeners();
-            elements.mainContainer.style.opacity = 1;
         }
         
         init();
     </script>
 </body>
 </html>
-
-
 
