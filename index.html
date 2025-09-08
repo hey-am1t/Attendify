@@ -92,7 +92,7 @@
         </main>
         
         <footer class="text-center pt-4 border-t border-gray-200">
-            <p class="text-xs text-gray-400">&copy; Amit Kumar 2025 | v25.0 Final</p>
+            <p class="text-xs text-gray-400">&copy; Amit Kumar 2025 | v26.0 Final</p>
         </footer>
     </div>
 
@@ -159,7 +159,6 @@
 
     <script>
         // --- CONFIGURATION ---
-        const DEPLOYMENT_URL = 'https://script.google.com/macros/s/AKfycbyIk3SSfcVoIZPeNAl0BWjw4I0UgcHv-I_dyJvKb_9kp80jPFyovfL0e6O2-6IktXj8/exec'; 
         const GAS_URL_GET_EMPLOYEES = 'https://script.google.com/macros/s/AKfycbyIk3SSfcVoIZPeNAl0BWjw4I0UgcHv-I_dyJvKb_9kp80jPFyovfL0e6O2-6IktXj8/exec?action=getEmployees'; // <-- IMPORTANT: PASTE YOUR SCRIPT URL
         const GAS_URL_POST = 'https://script.google.com/macros/s/AKfycbyIk3SSfcVoIZPeNAl0BWjw4I0UgcHv-I_dyJvKb_9kp80jPFyovfL0e6O2-6IktXj8/exec'; // <-- IMPORTANT: PASTE YOUR SCRIPT URL
         const FACEAPI_MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights';
@@ -189,6 +188,7 @@
             modalBody: document.getElementById('modal-body'),
             confirmBtn: document.getElementById('confirm-btn'),
             cancelBtn: document.getElementById('cancel-btn'),
+            statusSync: document.getElementById('status-sync'),
             pendingSyncModal: document.getElementById('pending-sync-modal'),
             closeSyncModalBtn: document.getElementById('close-sync-modal-btn'),
             pendingList: document.getElementById('pending-list'),
@@ -539,6 +539,17 @@
                 elements.canvas.width = elements.video.videoWidth;
                 elements.canvas.height = elements.video.videoHeight;
                 context.drawImage(elements.video, 0, 0, elements.canvas.width, elements.canvas.height);
+
+                // --- TIMESTAMP ON PHOTO ---
+                const timestampText = new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+                context.font = '20px Inter';
+                context.fillStyle = 'white';
+                context.strokeStyle = 'black';
+                context.lineWidth = 4;
+                context.strokeText(timestampText, 15, elements.canvas.height - 15);
+                context.fillText(timestampText, 15, elements.canvas.height - 15);
+                // --- END TIMESTAMP ---
+
                 const imageData = elements.canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 
                 const dataToSend = {
@@ -658,7 +669,7 @@
             
             elements.switchCameraBtn.addEventListener('click', async () => {
                 state.currentDeviceIndex = (state.currentDeviceIndex + 1) % state.videoDevices.length;
-                recapture(); // Reset face detection on camera switch
+                recapture();
                 await startStream();
             });
             elements.torchBtn.addEventListener('click', toggleTorch);
@@ -691,7 +702,4 @@
     </script>
 </body>
 </html>
-
-
-
 
