@@ -571,7 +571,7 @@ async function startStream() {
     const canvas = elements.canvas;
     const context = canvas.getContext('2d');
     const video = elements.video;
-    const maxWidth = 480;
+    const maxWidth = 640;
     const scale = maxWidth / video.videoWidth;
     canvas.width = maxWidth;
     canvas.height = video.videoHeight * scale;
@@ -583,7 +583,7 @@ async function startStream() {
     context.lineWidth = 3;
     context.strokeText(timestampText, 10, canvas.height - 10);
     context.fillText(timestampText, 10, canvas.height - 10);
-    const imageData = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
+    const imageData = canvas.toDataURL('image/jpeg', 0.75).split(',')[1];
 
                 const dataToSend = {
                     id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -794,6 +794,7 @@ function showPendingSyncs() {
     </script>
 </body>
 </html>
+
 
 
 
