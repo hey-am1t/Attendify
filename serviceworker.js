@@ -5,6 +5,7 @@ const DYNAMIC_CACHE_NAME = 'attendify-dynamic-v3';
 const CORE_ASSETS = [
   './',
   'index.html',
+  'dashboard.html',
   'manifest.json',
   'icons/icon-192x192.png',
   'icons/icon-512x512.png',
