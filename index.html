@@ -507,11 +507,58 @@ async function startStream() {
                 if (result.status !== 'success') throw new Error(result.message);
                 state.employeeDatabase = result.data;
                 enableInputs();
+                setupAutocomplete();
             } catch (error) {
                 showStatus(`Could not load employee data: ${error.message}`, 'error');
                 elements.empIdInput.placeholder = 'Loading failed';
             }
         }
+
+        function setupAutocomplete() {
+    const input = elements.empIdInput;
+    const suggestionBox = document.createElement('div');
+    suggestionBox.className = 'absolute bg-white border border-gray-300 rounded-lg shadow-md max-h-48 overflow-y-auto z-50';
+    suggestionBox.style.display = 'none';
+    input.parentNode.appendChild(suggestionBox);
+
+    input.addEventListener('input', () => {
+        const query = input.value.trim().toUpperCase();
+        suggestionBox.innerHTML = '';
+        if (!query) {
+            suggestionBox.style.display = 'none';
+            return;
+        }
+        const matches = state.employeeDatabase
+            .filter(emp => emp.EmployeeID.startsWith(query))
+            .slice(0, 5); // सिर्फ़ 5 suggestions दिखाएँ
+
+        if (matches.length === 0) {
+            suggestionBox.style.display = 'none';
+            return;
+        }
+
+        matches.forEach(emp => {
+            const option = document.createElement('div');
+            option.className = 'px-3 py-2 cursor-pointer hover:bg-indigo-100 text-sm';
+            option.textContent = `${emp.EmployeeID} - ${emp.FullName}`;
+            option.addEventListener('click', () => {
+                input.value = emp.EmployeeID;
+                handleIdInput(); // आपकी existing function से data auto-fill होगा
+                suggestionBox.style.display = 'none';
+            });
+            suggestionBox.appendChild(option);
+        });
+
+        suggestionBox.style.display = 'block';
+    });
+
+    // अगर बाहर click हुआ तो suggestion box बंद
+    document.addEventListener('click', (e) => {
+        if (!input.parentNode.contains(e.target)) {
+            suggestionBox.style.display = 'none';
+        }
+    });
+}
 
         function enableInputs() {
             elements.empIdInput.disabled = false;
@@ -805,6 +852,7 @@ function showPendingSyncs() {
     </script>
 </body>
 </html>
+
 
 
 
