@@ -239,10 +239,20 @@
         }
         
         // --- CLOCK (Shows local time, official timestamp is from server) ---
-        // PASTE THIS NEW FUNCTION
 function startClock() {
+    function formatTime(date) {
+        let hours = date.getHours();
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12; // the hour '0' should be '12'
+        const strHours = String(hours).padStart(2, '0');
+        return `${strHours}:${minutes}:${seconds} ${ampm}`;
+    }
+
     setInterval(() => {
-        elements.clock.textContent = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        elements.clock.textContent = formatTime(new Date());
     }, 1000);
 }
 
@@ -566,24 +576,25 @@ async function startStream() {
             toggleButtonLoader(buttonToLoad, true, status);
 
             try {
-    const location = await getMandatoryLocation();
-    
-    const canvas = elements.canvas;
-    const context = canvas.getContext('2d');
-    const video = elements.video;
-    const maxWidth = 640;
-    const scale = maxWidth / video.videoWidth;
-    canvas.width = maxWidth;
-    canvas.height = video.videoHeight * scale;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const timestampText = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-    context.font = '16px Inter';
-    context.fillStyle = 'white';
-    context.strokeStyle = 'black';
-    context.lineWidth = 3;
-    context.strokeText(timestampText, 10, canvas.height - 10);
-    context.fillText(timestampText, 10, canvas.height - 10);
-    const imageData = canvas.toDataURL('image/jpeg', 0.75).split(',')[1];
+                const location = await getMandatoryLocation();
+                
+                const context = elements.canvas.getContext('2d');
+                elements.canvas.width = elements.video.videoWidth;
+                elements.canvas.height = elements.video.videoHeight;
+                context.drawImage(elements.video, 0, 0, elements.canvas.width, elements.canvas.height);
+
+                // --- TIMESTAMP ON PHOTO ---
+                // PASTE THIS NEW LINE
+                const timestampText = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+                context.font = '20px Inter';
+                context.fillStyle = 'white';
+                context.strokeStyle = 'black';
+                context.lineWidth = 4;
+                context.strokeText(timestampText, 15, elements.canvas.height - 15);
+                context.fillText(timestampText, 15, elements.canvas.height - 15);
+                // --- END TIMESTAMP ---
+
+                const imageData = elements.canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 
                 const dataToSend = {
                     id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -794,11 +805,6 @@ function showPendingSyncs() {
     </script>
 </body>
 </html>
-
-
-
-
-
 
 
 
