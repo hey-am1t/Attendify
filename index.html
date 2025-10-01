@@ -519,6 +519,7 @@ async function startStream() {
     const suggestionBox = document.createElement('div');
     suggestionBox.className = 'absolute bg-white border border-gray-300 rounded-lg shadow-md max-h-48 overflow-y-auto z-50';
     suggestionBox.style.display = 'none';
+    input.parentNode.style.position = 'relative'; // ताकि suggestion box सही जगह रहे
     input.parentNode.appendChild(suggestionBox);
 
     input.addEventListener('input', () => {
@@ -528,9 +529,11 @@ async function startStream() {
             suggestionBox.style.display = 'none';
             return;
         }
+
+        // 🔎 अब substring search (includes)
         const matches = state.employeeDatabase
-            .filter(emp => emp.EmployeeID.startsWith(query))
-            .slice(0, 5); // सिर्फ़ 5 suggestions दिखाएँ
+            .filter(emp => emp.EmployeeID.toUpperCase().includes(query))
+            .slice(0, 8); // Max 8 suggestions दिखाएँ
 
         if (matches.length === 0) {
             suggestionBox.style.display = 'none';
@@ -540,10 +543,10 @@ async function startStream() {
         matches.forEach(emp => {
             const option = document.createElement('div');
             option.className = 'px-3 py-2 cursor-pointer hover:bg-indigo-100 text-sm';
-            option.textContent = `${emp.EmployeeID} - ${emp.FullName}`;
+            option.textContent = emp.EmployeeID; // सिर्फ़ ID दिखाएँ
             option.addEventListener('click', () => {
                 input.value = emp.EmployeeID;
-                handleIdInput(); // आपकी existing function से data auto-fill होगा
+                handleIdInput(); // आपकी existing function से details auto-fill होंगी
                 suggestionBox.style.display = 'none';
             });
             suggestionBox.appendChild(option);
@@ -552,7 +555,7 @@ async function startStream() {
         suggestionBox.style.display = 'block';
     });
 
-    // अगर बाहर click हुआ तो suggestion box बंद
+    // बाहर क्लिक करने पर suggestion box बंद
     document.addEventListener('click', (e) => {
         if (!input.parentNode.contains(e.target)) {
             suggestionBox.style.display = 'none';
@@ -852,6 +855,7 @@ function showPendingSyncs() {
     </script>
 </body>
 </html>
+
 
 
 
