@@ -724,7 +724,7 @@ async function startStream() {
         }
 
         async function executeAttendance() {
-            const status = state.pendingAction;
+            const status = state.pendingAction; // Captures 'IN' or 'OUT'
             if (!status) return;
             closeConfirmationModal();
             const buttonToLoad = (status === 'IN') ? elements.inBtn : elements.outBtn;
@@ -738,15 +738,29 @@ async function startStream() {
                 elements.canvas.height = elements.video.videoHeight;
                 context.drawImage(elements.video, 0, 0, elements.canvas.width, elements.canvas.height);
 
-                // --- TIMESTAMP ON PHOTO ---
-                // PASTE THIS NEW LINE
-                const timestampText = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-                context.font = '20px Inter';
-                context.fillStyle = 'white';
-                context.strokeStyle = 'black';
-                context.lineWidth = 4;
-                context.strokeText(timestampText, 15, elements.canvas.height - 15);
-                context.fillText(timestampText, 15, elements.canvas.height - 15);
+                // --- UPGRADED TIMESTAMP: Date, Time, ID, Name ---
+                const now = new Date();
+                const dateText = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+                const timeText = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+                const empIdText = elements.empIdInput.value.trim().toUpperCase();
+                const nameText = elements.nameInput.value.trim();
+
+                const line1 = `${dateText} | ${timeText}`;
+                const line2 = `${empIdText} - ${nameText}`;
+
+                context.font = '600 18px Inter, sans-serif';
+                context.fillStyle = '#ffffff';
+                context.strokeStyle = '#000000';
+                context.lineWidth = 3;
+                context.lineJoin = 'round';
+
+                // Draw Line 1 (Date & Time) slightly higher
+                context.strokeText(line1, 15, elements.canvas.height - 40);
+                context.fillText(line1, 15, elements.canvas.height - 40);
+                
+                // Draw Line 2 (ID & Name) at the bottom
+                context.strokeText(line2, 15, elements.canvas.height - 15);
+                context.fillText(line2, 15, elements.canvas.height - 15);
                 // --- END TIMESTAMP ---
 
                 const imageData = elements.canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
@@ -754,8 +768,9 @@ async function startStream() {
                 const dataToSend = {
                     id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                     action: 'markAttendance',
-                    empId: elements.empIdInput.value.trim().toUpperCase(),
-                    name: elements.nameInput.value.trim(),
+                    empId: empIdText,
+                    name: nameText,
+                    status: status, // <-- Send explicit IN/OUT status to backend
                     imageData,
                     latitude: location.latitude,
                     longitude: location.longitude,
@@ -960,6 +975,7 @@ function showPendingSyncs() {
     </script>
 </body>
 </html>
+
 
 
 
