@@ -158,12 +158,11 @@
 
 
     <script>
-        // --- CONFIGURATION ---
-        const GAS_URL_GET_EMPLOYEES = 'https://script.google.com/macros/s/AKfycbzdQpbqWwbFLMvdZEn4xHM0QcDS4LtExrpvGAOjcGtxsU7zVqDGSLlj3z7loWmPtSrS/exec?action=getEmployees'; // <-- IMPORTANT: PASTE YOUR SCRIPT URL
-        const GAS_URL_POST = 'https://script.google.com/macros/s/AKfycbzdQpbqWwbFLMvdZEn4xHM0QcDS4LtExrpvGAOjcGtxsU7zVqDGSLlj3z7loWmPtSrS/exec'; // <-- IMPORTANT: PASTE YOUR SCRIPT URL
+       // --- CONFIGURATION ---
+        const GAS_URL_GET_EMPLOYEES = 'https://script.google.com/macros/s/AKfycbzdQpbqWwbFLMvdZEn4xHM0QcDS4LtExrpvGAOjcGtxsU7zVqDGSLlj3z7loWmPtSrS/exec?action=getEmployees'; 
+        const GAS_URL_POST = 'https://script.google.com/macros/s/AKfycbzdQpbqWwbFLMvdZEn4xHM0QcDS4LtExrpvGAOjcGtxsU7zVqDGSLlj3z7loWmPtSrS/exec';
         const FACEAPI_MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights';
 
-        // --- ELEMENT REFERENCES (Meticulously checked against HTML) ---
         const elements = {
             clock: document.getElementById('real-time-clock'),
             networkText: document.getElementById('network-text'),
@@ -198,794 +197,190 @@
             submitLeaveBtn: document.getElementById('submit-leave-btn'),
         };
 
-        // --- APP STATE ---
         const state = {
             employeeDatabase: [], videoDevices: [], currentDeviceIndex: 0,
             currentStream: null, isTorchSupported: false, isTorchOn: false,
             pendingAction: null, isFaceDetectionReady: false, faceDetectionInterval: null,
         };
         
-        // --- ICONS ---
         const icons = {
              recapture: `<svg width="24" height="24" viewBox="0 0 0.48 0.48" xmlns="http://www.w3.org/2000/svg"><path d="M.449.24h.003a.03.03 0 0 1 .025.034.24.24 0 0 1-.401.142L.051.441A.03.03 0 0 1 0 .42V.3h.12a.03.03 0 0 1 .021.051L.119.373a.18.18 0 0 0 .25-.008.2.2 0 0 0 .049-.1A.03.03 0 0 1 .452.24zM.345.024a.2.2 0 0 1 .058.04L.428.039A.03.03 0 0 1 .479.06v.12H.36A.03.03 0 0 1 .339.129L.361.107a.18.18 0 0 0-.299.108.03.03 0 1 1-.059-.008.24.24 0 0 1 .342-.183"/></svg>`,
-             torchOn: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 2.1 2.1" xml:space="preserve"><path d="m1.442.19-.224.787h.332l-.738.902.145-.781H.55zm0-.113-.004.006a.12.12 0 0 0-.067.027l-.013.013-.891.898a.12.12 0 0 0-.026.127c.019.045.062.07.111.07h.262l-.119.655a.124.124 0 0 0 .067.133.1.1 0 0 0 .051.012.12.12 0 0 0 .092-.043l.738-.89c.03-.036.036-.101.016-.143S1.597.858 1.55.858h-.174l.18-.626a.117.117 0 0 0-.111-.154z"/><path d="M.812 1.028A.03.03 0 0 1 .79.978l.39-.42a.03.03 0 1 1 .044.041l-.39.42a.03.03 0 0 1-.022.01m.393.24a.03.03 0 0 1-.024-.048l.117-.15a.03.03 0 1 1 .047.037l-.117.15a.03.03 0 0 1-.024.012m-.093.12a.03.03 0 0 1-.018-.006.03.03 0 0 1-.005-.042l.023-.03a.03.03 0 0 1 .042-.005.03.03 0 0 1 .005.042l-.023.03a.03.03 0 0 1-.024.012"/></svg>`,
-             torchOff: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 2.1 2.1" xml:space="preserve"><path d="m1.442.19-.224.787h.332l-.738.902.145-.781H.55zm0-.113-.004.006a.12.12 0 0 0-.067.027l-.013.013-.891.898a.12.12 0 0 0-.026.127c.019.045.062.07.111.07h.262l-.119.655a.124.124 0 0 0 .067.133.1.1 0 0 0 .051.012.12.12 0 0 0 .092-.043l.738-.89c.03-.036.036-.101.016-.143S1.597.858 1.55.858h-.174l.18-.626a.117.117 0 0 0-.111-.154z"/><path d="M.812 1.028A.03.03 0 0 1 .79.978l.39-.42a.03.03 0 1 1 .044.041l-.39.42a.03.03 0 0 1-.022.01m.393.24a.03.03 0 0 1-.024-.048l.117-.15a.03.03 0 1 1 .047.037l-.117.15a.03.03 0 0 1-.024.012m-.093.12a.03.03 0 0 1-.018-.006.03.03 0 0 1-.005-.042l.023-.03a.03.03 0 0 1 .042-.005.03.03 0 0 1 .005.042l-.023.03a.03.03 0 0 1-.024.012"/></svg>`,
-             switchCamera: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" xml:space="preserve" width="24" height="24"><path style="fill:#0097f4" d="M18.771 6.948h-3.337l-.349-.66c0-.776-.621-1.281-1.397-1.281H9.109c-.776 0-1.397.504-1.397 1.281l-.31.66H6.16l.078.078c0-.504-.466-.931-.97-.931s-.97.427-.97.931l.039-.078h-.272c-.815 0-1.358.737-1.358 1.552v8.731c0 .815.543 1.358 1.319 1.358h14.746c.815 0 1.397-.543 1.397-1.358V8.5c0-.815-.582-1.552-1.397-1.552"/><path style="fill:#007ff2" d="M14.154 18.589h4.618c.815 0 1.397-.543 1.397-1.358V8.5c0-.815-.582-1.552-1.397-1.552h-3.337l-.078-.66c0-.776-.892-1.281-1.669-1.281H9.109c-.776 0-1.669.504-1.669 1.281l-.039.66H6.159l.078.078c0-.504-.466-.931-.97-.931s-.97.427-.97.931l.039-.078h-.272c-.427 0-.815.233-1.009.504z"/><path style="fill:#036de0" d="M8.76 11.527c0-.039 0 0 0 0"/><path style="fill:#ff2970" d="m1.736 6.288 1.475-1.125c.155-.116.194-.388.078-.543s-.388-.194-.543-.078l-.66.504c.116-.892.582-1.669 1.319-2.251.737-.543 1.63-.815 2.561-.698.116 0 .194 0 .31-.078.078-.078.155-.155.155-.272.039-.233-.116-.427-.349-.427a4.57 4.57 0 0 0-3.182.854 4.34 4.34 0 0 0-1.63 2.833v.039L.688 4.27C.572 4.115.3 4.076.145 4.192s-.194.388-.078.543L1.192 6.21c.116.194.388.233.543.078m20.568 11.409-1.475 1.125c-.155.116-.194.388-.078.543s.388.194.543.078l.66-.504c-.116.892-.582 1.669-1.319 2.251-.737.543-1.63.815-2.561.698-.116 0-.194 0-.31.078-.078.078-.155.155-.155.272-.039.233.116.427.349.427 1.125.155 2.251-.155 3.143-.854s1.475-1.669 1.63-2.794v-.078l.582.776c.116.155.388.194.543.078s.194-.388.078-.543l-1.125-1.475c-.078-.194-.349-.233-.504-.078m.155.854"/><path style="fill:#b0e9ff" d="M14.697 12.613a3.3 3.3 0 0 1-3.298 3.299A3.3 3.3 0 0 1 8.1 12.613a3.298 3.298 0 0 1 6.597 0"/><path style="fill:#88cde2" d="M11.399 9.315a3.295 3.295 0 0 0-3.298 3.298v.039l3.26 3.26h.039c1.824 0 3.298-1.475 3.298-3.298S13.223 9.316 11.4 9.316"/></svg>`,
+             torchOff: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 2.1 2.1"><path d="m1.442.19-.224.787h.332l-.738.902.145-.781H.55zm0-.113-.004.006a.12.12 0 0 0-.067.027l-.013.013-.891.898a.12.12 0 0 0-.026.127c.019.045.062.07.111.07h.262l-.119.655a.124.124 0 0 0 .067.133.1.1 0 0 0 .051.012.12.12 0 0 0 .092-.043l.738-.89c.03-.036.036-.101.016-.143S1.597.858 1.55.858h-.174l.18-.626a.117.117 0 0 0-.111-.154z"/></svg>`,
+             switchCamera: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="#4f46e5" d="M19 8h-3.3l-.3-.6c-.2-.4-.6-.7-1-.7h-4.8c-.4 0-.8.3-1 .7l-.3.6H5c-.8 0-1.5.7-1.5 1.5v8c0 .8.7 1.5 1.5 1.5h14c.8 0 1.5-.7 1.5-1.5v-8c0-.8-.7-1.5-1.5-1.5z"/></svg>`,
         };
 
-        // --- UTILITY & UI FUNCTIONS ---
-        function showStatus(message, type = 'info', duration = 4000) {
+        // --- CLOCK & UI ---
+        function startClock() {
+            setInterval(() => {
+                const now = new Date();
+                elements.clock.textContent = now.toLocaleTimeString('en-IN', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            }, 1000);
+        }
+
+        function showStatus(message, type = 'info') {
             elements.statusMessage.textContent = message;
-            elements.statusMessage.classList.remove('hidden', 'bg-blue-100', 'text-blue-700', 'bg-red-100', 'text-red-700', 'bg-yellow-100', 'text-yellow-700', 'bg-green-100', 'text-green-700');
-            let bgColor, textColor;
-            switch (type) {
-                case 'error': bgColor = 'bg-red-100'; textColor = 'text-red-700'; break;
-                case 'warning': bgColor = 'bg-yellow-100'; textColor = 'text-yellow-700'; break;
-                case 'success': bgColor = 'bg-green-100'; textColor = 'text-green-700'; break;
-                default: bgColor = 'bg-blue-100'; textColor = 'text-blue-700'; break;
-            }
-            elements.statusMessage.classList.add(bgColor, textColor);
-            setTimeout(() => { if(elements.statusMessage.textContent === message) elements.statusMessage.classList.add('hidden')}, duration);
+            elements.statusMessage.className = `text-center text-sm font-medium p-3 rounded-lg fade-in ${type === 'error' ? 'bg-red-100 text-red-700' : type === 'success' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`;
+            elements.statusMessage.classList.remove('hidden');
+            setTimeout(() => elements.statusMessage.classList.add('hidden'), 5000);
         }
 
-        function toggleButtonLoader(button, isLoading, originalText) {
-            if (isLoading) {
-                button.disabled = true;
-                button.innerHTML = `<div class="btn-loader"></div>`;
-            } else {
-                button.disabled = false;
-                button.innerHTML = originalText;
-            }
-        }
-        
-        // --- CLOCK (Shows local time, official timestamp is from server) ---
-function startClock() {
-    function formatTime(date) {
-        let hours = date.getHours();
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        const seconds = String(date.getSeconds()).padStart(2, '0');
-        const ampm = hours >= 12 ? 'PM' : 'AM';
-        hours = hours % 12;
-        hours = hours ? hours : 12; // the hour '0' should be '12'
-        const strHours = String(hours).padStart(2, '0');
-        return `${strHours}:${minutes}:${seconds} ${ampm}`;
-    }
-
-    setInterval(() => {
-        elements.clock.textContent = formatTime(new Date());
-    }, 1000);
-}
-
-       // --- INDEXEDDB SETUP (Future-Proof Offline Storage) ---
+        // --- INDEXEDDB CORE ---
         const DB_NAME = 'AttendifyDB';
         const STORE_NAME = 'attendance_queue';
 
         function initDB() {
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open(DB_NAME, 1);
-                request.onerror = (event) => reject("IndexedDB error: " + event.target.errorCode);
-                request.onsuccess = (event) => resolve(event.target.result);
-                request.onupgradeneeded = (event) => {
-                    const db = event.target.result;
-                    if (!db.objectStoreNames.contains(STORE_NAME)) {
-                        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-                    }
-                };
+                request.onupgradeneeded = (e) => e.target.result.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                request.onsuccess = (e) => resolve(e.target.result);
+                request.onerror = (e) => reject(e.target.error);
             });
         }
 
         async function getOfflineQueue() {
             const db = await initDB();
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction([STORE_NAME], 'readonly');
-                const store = transaction.objectStore(STORE_NAME);
-                const request = store.getAll();
-                request.onsuccess = () => resolve(request.result || []);
-                request.onerror = () => reject(request.error);
+            return new Promise((resolve) => {
+                const request = db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).getAll();
+                request.onsuccess = () => resolve(request.result);
             });
         }
 
         async function saveToOfflineQueue(data) {
             const db = await initDB();
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction([STORE_NAME], 'readwrite');
-                const store = transaction.objectStore(STORE_NAME);
-                const request = store.put(data);
-                request.onsuccess = () => {
-                    updateSyncStatus();
-                    resolve();
-                };
-                request.onerror = () => reject(request.error);
-            });
+            await db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).put(data);
+            updateSyncStatus();
         }
 
         async function deleteFromOfflineQueue(id) {
             const db = await initDB();
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction([STORE_NAME], 'readwrite');
-                const store = transaction.objectStore(STORE_NAME);
-                const request = store.delete(id);
-                request.onsuccess = () => resolve();
-                request.onerror = () => reject(request.error);
-            });
+            await db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).delete(id);
+            updateSyncStatus();
         }
 
-        // --- OFFLINE & SYNC LOGIC ---
-        function handleNetworkStatus() {
-            const update = () => {
+        // --- ATTENDANCE EXECUTION ---
+        async function executeAttendance() {
+            const status = state.pendingAction;
+            if (!status) return;
+            closeConfirmationModal();
+            const btn = (status === 'IN') ? elements.inBtn : elements.outBtn;
+            const originalText = status;
+            btn.disabled = true;
+            btn.innerHTML = `<div class="btn-loader"></div>`;
+
+            try {
+                const pos = await new Promise((res, rej) => {
+                    navigator.geolocation.getCurrentPosition(res, () => rej(new Error("Please enable GPS")), { enableHighAccuracy: true });
+                });
+
+                const ctx = elements.canvas.getContext('2d');
+                elements.canvas.width = elements.video.videoWidth;
+                elements.canvas.height = elements.video.videoHeight;
+                ctx.drawImage(elements.video, 0, 0);
+
+                // Multi-line Timestamp
+                const now = new Date();
+                const line1 = `${now.toLocaleDateString('en-IN')} | ${now.toLocaleTimeString('en-IN', {hour12:true})}`;
+                const line2 = `${elements.empIdInput.value} - ${elements.nameInput.value}`;
+                ctx.font = 'bold 20px Inter';
+                ctx.fillStyle = 'white';
+                ctx.shadowColor = 'black'; ctx.shadowBlur = 4;
+                ctx.fillText(line1, 20, elements.canvas.height - 50);
+                ctx.fillText(line2, 20, elements.canvas.height - 20);
+
+                const data = {
+                    id: `att_${Date.now()}`,
+                    action: 'markAttendance',
+                    empId: elements.empIdInput.value.trim(),
+                    name: elements.nameInput.value,
+                    status: status,
+                    latitude: pos.coords.latitude,
+                    longitude: pos.coords.longitude,
+                    imageData: elements.canvas.toDataURL('image/jpeg', 0.7).split(',')[1]
+                };
+
                 if (navigator.onLine) {
-                    elements.networkText.textContent = 'Online';
-                    elements.networkText.className = 'text-green-600';
-                    syncOfflineData();
+                    const resp = await fetch(GAS_URL_POST, { method: 'POST', body: JSON.stringify(data) });
+                    const res = await resp.json();
+                    if (res.status === 'success') showStatus("Attendance marked!", "success");
+                    else throw new Error(res.message);
                 } else {
-                    elements.networkText.textContent = 'Offline';
-                    elements.networkText.className = 'text-red-600';
-                    showStatus('You are offline. Data will be saved locally.', 'warning');
+                    await saveToOfflineQueue(data);
+                    showStatus("Saved offline!", "success");
                 }
-            };
-            update();
-            window.addEventListener('online', update);
-            window.addEventListener('offline', update);
-        }
-
-        async function updateSyncStatus() {
-            const queue = await getOfflineQueue();
-            if (queue.length > 0) {
-                elements.syncText.textContent = `Pending: ${queue.length}`;
-                elements.syncText.className = 'text-yellow-600';
-            } else {
-                elements.syncText.textContent = 'Synced';
-                elements.syncText.className = 'text-green-600';
+                resetForm();
+            } catch (err) {
+                showStatus(err.message, "error");
+            } finally {
+                btn.disabled = false; btn.innerHTML = originalText;
+                recapture();
             }
         }
 
-        async function syncOfflineData() {
-            let queue = await getOfflineQueue();
-            if (queue.length === 0) return;
-            
-            elements.syncText.textContent = `Syncing: ${queue.length}`;
-            elements.syncText.className = 'text-blue-600';
-
-            for (const item of queue) {
-                try {
-                    const response = await fetch(GAS_URL_POST, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                        body: JSON.stringify(item),
-                        redirect: 'follow'
-                    });
-                    if (!response.ok) throw new Error(`Server error: ${response.status}`);
-                    const result = await response.json();
-                    
-                    if (result.status === 'success') {
-                        await deleteFromOfflineQueue(item.id); // Remove from DB on success
-                    } else { 
-                        throw new Error(result.message); 
-                    }
-                } catch (error) {
-                    console.error('Sync failed for item:', item.id, error);
-                    elements.syncText.textContent = 'Sync Failed';
-                    elements.syncText.className = 'text-red-600';
-                    showStatus('Sync failed. Will retry later.', 'error');
-                    break; 
-                }
-            }
-            updateSyncStatus();
-            showPendingSyncs(); // Refresh the UI if modal is open
+        // --- CAMERA LOGIC ---
+        async function initializeCamera() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+            elements.video.srcObject = stream;
+            state.currentStream = stream;
+            elements.videoLoader.classList.add('hidden');
+            elements.video.classList.remove('hidden');
+            loadFaceApiModels();
         }
 
-        async function retrySyncItem(retryButton) {
-            const itemId = retryButton.dataset.id;
-            const queue = await getOfflineQueue();
-            const itemToRetry = queue.find(item => item.id === itemId);
-            if (!itemToRetry) return;
-
-            retryButton.disabled = true;
-            retryButton.innerHTML = `<div class="btn-loader"></div>`;
-
-            try {
-                const response = await fetch(GAS_URL_POST, {
-                    method: 'POST', body: JSON.stringify(itemToRetry), headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-                });
-                if (!response.ok) throw new Error("Server error");
-                const result = await response.json();
-                if (result.status !== 'success') throw new Error(result.message);
-
-                showStatus(`Record for ${itemToRetry.name} synced successfully!`, 'success');
-                await deleteFromOfflineQueue(itemId); // Remove from DB on success
-                
-                showPendingSyncs(); // Refresh the modal list
-                updateSyncStatus();
-            } catch (error) {
-                showStatus(`Retry failed: ${error.message}`, 'error');
-                retryButton.disabled = false;
-                retryButton.textContent = 'Retry';
-            }
-        }
-
-        async function deleteSyncItem(itemId) {
-            if (!confirm('Are you sure you want to delete this pending record? This cannot be undone.')) {
-                return;
-            }
-            await deleteFromOfflineQueue(itemId);
-            showStatus('Pending record deleted.', 'success');
-            showPendingSyncs();
-            updateSyncStatus();
-        }
-        
-        async function showPendingSyncs() {
-            const queue = await getOfflineQueue();
-            elements.pendingList.innerHTML = '';
-            if (queue.length === 0) {
-                elements.pendingList.innerHTML = `<li class="text-center text-gray-500 p-4">No pending records.</li>`;
-            } else {
-                queue.forEach(item => {
-                    const li = document.createElement('li');
-                    li.className = 'p-2 bg-white rounded shadow-sm text-sm flex justify-between items-center';
-                    li.innerHTML = `
-                        <div>
-                            <div class="font-bold">${item.name} (${item.empId})</div>
-                            <div class="text-xs text-gray-600">Saved at ${new Date(parseInt(item.id.split('_')[1])).toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit', second:'2-digit'})}</div>
-                        </div>
-                        <div class="flex gap-2">
-                            <button data-id="${item.id}" class="retry-btn text-xs bg-indigo-100 text-indigo-700 font-semibold px-2 py-1 rounded-md btn">Retry</button>
-                            <button data-id="${item.id}" class="delete-btn text-xs bg-red-100 text-red-700 font-semibold px-2 py-1 rounded-md btn">Delete</button>
-                        </div>
-                    `;
-                    elements.pendingList.appendChild(li);
-                });
-            }
-            elements.pendingSyncModal.classList.remove('hidden');
-        }
-        
-        // --- CAMERA & FACE DETECTION ---
         async function loadFaceApiModels() {
-            try {
-                updateFaceDetectionStatus('Loading AI models...', 'info');
-                await Promise.all([
-                    faceapi.nets.tinyFaceDetector.loadFromUri(FACEAPI_MODEL_URL),
-                ]);
-                state.isFaceDetectionReady = true;
-                updateFaceDetectionStatus('Ready to Scan. Please look at the camera.', 'info');
-                startFaceDetection();
-            } catch (error) {
-                console.error("Error loading face models:", error);
-                updateFaceDetectionStatus('Face detection failed to load.', 'error');
-            }
+            await faceapi.nets.tinyFaceDetector.loadFromUri(FACEAPI_MODEL_URL);
+            state.isFaceDetectionReady = true;
+            startFaceDetection();
         }
 
         function startFaceDetection() {
-            if (state.faceDetectionInterval) clearInterval(state.faceDetectionInterval);
             state.faceDetectionInterval = setInterval(async () => {
-                if (!elements.video.paused && state.isFaceDetectionReady) {
-                    const detections = await faceapi.detectAllFaces(elements.video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.5 }));
-                    if (detections.length === 1) {
-                        elements.video.pause();
-                        clearInterval(state.faceDetectionInterval);
-                        updateFaceDetectionStatus('Face detected! Ready to mark attendance.', 'success');
-                        if (elements.empIdInput.value) {
-                           elements.inBtn.disabled = false;
-                           elements.outBtn.disabled = false;
-                        }
-                        elements.recaptureBtn.classList.remove('hidden');
-                    } else if (detections.length > 1) {
-                         updateFaceDetectionStatus('Multiple faces detected. Please ensure only one person is visible.', 'warning');
-                    } else {
-                         updateFaceDetectionStatus('Looking for a face...', 'info');
-                    }
+                if (elements.video.paused) return;
+                const detect = await faceapi.detectAllFaces(elements.video, new faceapi.TinyFaceDetectorOptions());
+                if (detect.length === 1) {
+                    elements.video.pause();
+                    elements.faceDetectionStatus.textContent = "Face Detected!";
+                    elements.recaptureBtn.classList.remove('hidden');
+                    if (elements.empIdInput.value) { elements.inBtn.disabled = false; elements.outBtn.disabled = false; }
                 }
             }, 1000);
         }
 
         function recapture() {
             elements.video.play();
-            elements.inBtn.disabled = true;
-            elements.outBtn.disabled = true;
             elements.recaptureBtn.classList.add('hidden');
+            elements.inBtn.disabled = true; elements.outBtn.disabled = true;
             startFaceDetection();
         }
 
-        function updateFaceDetectionStatus(message, type) {
-            elements.faceDetectionStatus.classList.remove('bg-blue-100', 'text-blue-700', 'bg-red-100', 'text-red-700', 'bg-yellow-100', 'text-yellow-700', 'bg-green-100', 'text-green-700');
-            let bgColor, textColor;
-             switch (type) {
-                case 'error': bgColor = 'bg-red-100'; textColor = 'text-red-700'; break;
-                case 'warning': bgColor = 'bg-yellow-100'; textColor = 'text-yellow-700'; break;
-                case 'success': bgColor = 'bg-green-100'; textColor = 'text-green-700'; break;
-                default: bgColor = 'bg-blue-100'; textColor = 'text-blue-700'; break;
-            }
-            elements.faceDetectionStatus.classList.add(bgColor, textColor);
-            elements.faceDetectionStatus.textContent = message;
-        }
+        // --- INITIALIZATION ---
+        function resetForm() { elements.empIdInput.value = ''; handleIdInput(); }
         
-async function initializeCamera() {
-    elements.videoLoader.classList.remove('hidden');
-    updateFaceDetectionStatus('Initializing Camera...', 'info');
-    if (!navigator.mediaDevices?.getUserMedia) {
-        handleCameraError(new Error("NotSupportedError"));
-        return;
-    }
-    try {
-        // First, just get the list of devices without starting the stream yet.
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        state.videoDevices = devices.filter(d => d.kind === 'videoinput');
-        if (state.videoDevices.length > 1) {
-            elements.switchCameraBtn.classList.remove('hidden');
-        }
-        // Now, start the stream with flexible constraints.
-        await startStream();
-    } catch (error) {
-        handleCameraError(error);
-    }
-}
-        
-        
-async function startStream() {
-    if (state.currentStream) {
-        state.currentStream.getTracks().forEach(track => track.stop());
-    }
-
-    // --- NEW FLEXIBLE CONSTRAINTS (Front Camera Preferred) ---
-    // This is the core of the fix. It creates a flexible request.
-    const constraints = {
-        video: {
-            // On ALL devices, prefer the front (selfie) camera first. enviroment
-            facingMode: 'user'
-        }
-    };
-    
-    // If we have a list of cameras and the user has switched, use the specific ID.
-    if (state.videoDevices.length > 0) {
-        constraints.video.deviceId = { exact: state.videoDevices[state.currentDeviceIndex].deviceId };
-    }
-    // --- END OF NEW CONSTRAINTS ---
-
-    try {
-        // Try to get the camera with our ideal constraints (front-facing)
-        state.currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-    } catch (error) {
-        console.warn("Ideal constraints (user-facing) failed, trying simpler fallback:", error);
-        // If the ideal constraints fail (e.g., no front camera), try a simpler request.
-        // This is a crucial fallback that helps on many desktops.
-        try {
-             state.currentStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        } catch (fallbackError) {
-             handleCameraError(fallbackError);
-             return;
-        }
-    }
-
-    elements.video.srcObject = state.currentStream;
-    await elements.video.play();
-    elements.videoLoader.classList.add('hidden');
-    elements.video.classList.remove('hidden');
-    checkTorchSupport();
-    if (!state.isFaceDetectionReady) {
-        loadFaceApiModels();
-    } else {
-        recapture(); // Ensure face detection restarts
-    }
-}
-        
-        function handleCameraError(error) {
-            elements.videoLoader.classList.add('hidden');
-            let message = 'Error: Could not access camera.';
-            if (error.name === "NotAllowedError") {
-                message = 'Error: Camera permission denied. Please allow camera access.';
-            } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-                message = 'Error: No camera found on this device.';
-            }
-            updateFaceDetectionStatus(message, 'error');
-        }
-        
-        async function checkTorchSupport() {
-            if (!state.currentStream) return;
-            try {
-                const track = state.currentStream.getVideoTracks()[0];
-                const capabilities = track.getCapabilities();
-                state.isTorchSupported = !!capabilities.torch;
-                elements.torchBtn.classList.toggle('hidden', !state.isTorchSupported);
-            } catch (e) {
-                state.isTorchSupported = false;
-                elements.torchBtn.classList.add('hidden');
-            }
+        async function updateSyncStatus() {
+            const q = await getOfflineQueue();
+            elements.syncText.textContent = q.length > 0 ? `Pending: ${q.length}` : "Synced";
         }
 
-        async function toggleTorch() {
-            if (!state.isTorchSupported) return;
-            const track = state.currentStream.getVideoTracks()[0];
-            state.isTorchOn = !state.isTorchOn;
-            try {
-                await track.applyConstraints({ advanced: [{ torch: state.isTorchOn }] });
-                elements.torchBtn.classList.toggle('torch-on', state.isTorchOn);
-            } catch(err) {
-                showStatus('Could not control torch.', 'error');
-            }
-        }
-        
-        // --- CORE APPLICATION LOGIC ---
-        async function fetchEmployeeData() {
-            try {
-                const response = await fetch(GAS_URL_GET_EMPLOYEES);
-                if (!response.ok) throw new Error('Network error fetching employees');
-                const result = await response.json();
-                if (result.status !== 'success') throw new Error(result.message);
-                state.employeeDatabase = result.data;
-                enableInputs();
-                setupAutocomplete();
-            } catch (error) {
-                showStatus(`Could not load employee data: ${error.message}`, 'error');
-                elements.empIdInput.placeholder = 'Loading failed';
-            }
+        function init() {
+            startClock();
+            initializeCamera();
+            fetchEmployeeData();
+            addEventListeners();
+            updateSyncStatus();
         }
 
-        function setupAutocomplete() {
-    const input = elements.empIdInput;
-    const suggestionBox = document.createElement('div');
-    suggestionBox.className = 'absolute bg-white border border-gray-300 rounded-lg shadow-md max-h-48 overflow-y-auto z-50';
-    suggestionBox.style.display = 'none';
-    input.parentNode.style.position = 'relative'; // ताकि suggestion box सही जगह रहे
-    input.parentNode.appendChild(suggestionBox);
-
-    input.addEventListener('input', () => {
-        const query = input.value.trim().toUpperCase();
-        suggestionBox.innerHTML = '';
-        if (!query) {
-            suggestionBox.style.display = 'none';
-            return;
-        }
-
-        // 🔎 अब substring search (includes)
-        const matches = state.employeeDatabase
-            .filter(emp => emp.EmployeeID.toUpperCase().includes(query))
-            .slice(0, 8); // Max 8 suggestions दिखाएँ
-
-        if (matches.length === 0) {
-            suggestionBox.style.display = 'none';
-            return;
-        }
-
-        matches.forEach(emp => {
-            const option = document.createElement('div');
-            option.className = 'px-3 py-2 cursor-pointer hover:bg-indigo-100 text-sm';
-            option.textContent = emp.EmployeeID; // सिर्फ़ ID दिखाएँ
-            option.addEventListener('click', () => {
-                input.value = emp.EmployeeID;
-                handleIdInput(); // आपकी existing function से details auto-fill होंगी
-                suggestionBox.style.display = 'none';
-            });
-            suggestionBox.appendChild(option);
-        });
-
-        suggestionBox.style.display = 'block';
-    });
-
-    // बाहर क्लिक करने पर suggestion box बंद
-    document.addEventListener('click', (e) => {
-        if (!input.parentNode.contains(e.target)) {
-            suggestionBox.style.display = 'none';
-        }
-    });
-}
-
-        function enableInputs() {
-            elements.empIdInput.disabled = false;
-            elements.empIdInput.placeholder = 'Enter your Employee ID';
-        }
-        
-        function handleIdInput() {
-            const empId = elements.empIdInput.value.trim().toUpperCase();
-            const employee = empId ? state.employeeDatabase.find(emp => emp.EmployeeID === empId) : null;
-            
-            if (employee) {
-                elements.nameInput.value = employee.FullName;
-                elements.departmentInput.value = employee.Department;
-                elements.designationInput.value = employee.Designation;
-                elements.applyLeaveBtn.disabled = false;
-                if (elements.video.paused) { 
-                    elements.inBtn.disabled = false;
-                    elements.outBtn.disabled = false;
-                }
-            } else {
-                elements.nameInput.value = '';
-                elements.departmentInput.value = '';
-                elements.designationInput.value = '';
-                elements.applyLeaveBtn.disabled = true;
-                elements.inBtn.disabled = true;
-                elements.outBtn.disabled = true;
-                if(empId) showStatus('Employee ID not found.', 'warning');
-            }
-        }
-
-        function getMandatoryLocation() {
-            return new Promise((resolve, reject) => {
-                if (!navigator.geolocation) {
-                    return reject(new Error("Geolocation is not supported by this browser."));
-                }
-                showStatus("Getting your location...", "info", 10000);
-                navigator.geolocation.getCurrentPosition(
-                    (position) => resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
-                    (error) => reject(new Error("Could not get location. Please enable location services.")),
-                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                );
-            });
-        }
-
-        function openConfirmationModal(status) {
-            state.pendingAction = status;
-            elements.modalTitle.textContent = `Confirm Mark ${status}`;
-            elements.modalBody.innerHTML = `Are you sure you want to mark attendance for <strong class="text-indigo-600">${elements.nameInput.value}</strong>?`;
-            elements.confirmationModal.classList.remove('hidden');
-        }
-
-        function closeConfirmationModal() {
-            elements.confirmationModal.classList.add('hidden');
-            state.pendingAction = null;
-        }
-
-        async function executeAttendance() {
-            const status = state.pendingAction; // Captures 'IN' or 'OUT'
-            if (!status) return;
-            closeConfirmationModal();
-            const buttonToLoad = (status === 'IN') ? elements.inBtn : elements.outBtn;
-            toggleButtonLoader(buttonToLoad, true, status);
-
-            try {
-                const location = await getMandatoryLocation();
-                
-                const context = elements.canvas.getContext('2d');
-                elements.canvas.width = elements.video.videoWidth;
-                elements.canvas.height = elements.video.videoHeight;
-                context.drawImage(elements.video, 0, 0, elements.canvas.width, elements.canvas.height);
-
-                // --- UPGRADED TIMESTAMP: Date, Time, ID, Name ---
-                const now = new Date();
-                const dateText = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-                const timeText = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-                const empIdText = elements.empIdInput.value.trim().toUpperCase();
-                const nameText = elements.nameInput.value.trim();
-
-                const line1 = `${dateText} | ${timeText}`;
-                const line2 = `${empIdText} - ${nameText}`;
-
-                context.font = '600 18px Inter, sans-serif';
-                context.fillStyle = '#ffffff';
-                context.strokeStyle = '#000000';
-                context.lineWidth = 3;
-                context.lineJoin = 'round';
-
-                // Draw Line 1 (Date & Time) slightly higher
-                context.strokeText(line1, 15, elements.canvas.height - 40);
-                context.fillText(line1, 15, elements.canvas.height - 40);
-                
-                // Draw Line 2 (ID & Name) at the bottom
-                context.strokeText(line2, 15, elements.canvas.height - 15);
-                context.fillText(line2, 15, elements.canvas.height - 15);
-                // --- END TIMESTAMP ---
-
-                const imageData = elements.canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-
-                const dataToSend = {
-                    id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                    action: 'markAttendance',
-                    empId: empIdText,
-                    name: nameText,
-                    status: status, // <-- Send explicit IN/OUT status to backend
-                    imageData,
-                    latitude: location.latitude,
-                    longitude: location.longitude,
-                };
-
-                if (navigator.onLine) {
-                    await submitData(dataToSend);
-                } else {
-                    saveToOfflineQueue(dataToSend);
-                    showStatus('Offline. Attendance saved locally.', 'info');
-                    resetForm();
-                }
-            } catch (error) {
-                showStatus(error.message, 'error');
-            } finally {
-                toggleButtonLoader(buttonToLoad, false, status);
-                recapture();
-            }
-        }
-        
-        // PASTE THIS NEW FUNCTION
-async function submitData(data) {
-     try {
-        const response = await fetch(GAS_URL_POST, {
-            method: 'POST', body: JSON.stringify(data), redirect: 'follow',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-        });
-        if (!response.ok) throw new Error(`Server responded with status ${response.status}`);
-        const result = await response.json();
-        if (result.status !== 'success') throw new Error(result.message);
-        showStatus(`Attendance marked! It will be processed shortly.`, 'success');
-        resetForm();
-        // Try to sync any older pending items after a successful submission
-        setTimeout(syncOfflineData, 1000); 
-    } catch (error) {
-        showStatus(`Submission Failed: ${error.message}. Saving locally.`, 'warning');
-        saveToOfflineQueue(data);
-        resetForm();
-    }
-}
-        
-        async function handleLeaveRequest(event) {
-            event.preventDefault();
-            toggleButtonLoader(elements.submitLeaveBtn, true, 'Submit Request');
-            
-            const dataToSend = {
-                action: 'applyForLeave',
-                empId: elements.empIdInput.value.trim().toUpperCase(),
-                name: elements.nameInput.value.trim(),
-                leaveType: document.getElementById('leave-type').value,
-                startDate: document.getElementById('start-date').value,
-                endDate: document.getElementById('end-date').value,
-                reason: document.getElementById('reason').value
-            };
-
-            if (!dataToSend.startDate || !dataToSend.endDate || !dataToSend.reason) {
-                showStatus('Please fill all leave application fields.', 'warning');
-                toggleButtonLoader(elements.submitLeaveBtn, false, 'Submit Request');
-                return;
-            }
-
-            try {
-                 const response = await fetch(GAS_URL_POST, {
-                    method: 'POST', body: JSON.stringify(dataToSend), redirect: 'follow',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-                });
-                if (!response.ok) throw new Error(`Server responded with status ${response.status}`);
-                const result = await response.json();
-                if (result.status !== 'success') throw new Error(result.message);
-                showStatus('Leave request submitted successfully!', 'success');
-                elements.leaveForm.reset();
-                elements.leaveModal.classList.add('hidden');
-            } catch (error) {
-                showStatus(`Submission Failed: ${error.message}`, 'error');
-            } finally {
-                toggleButtonLoader(elements.submitLeaveBtn, false, 'Submit Request');
-            }
-        }
-        
-        function resetForm() {
-            elements.empIdInput.value = '';
-            handleIdInput();
-            elements.empIdInput.focus();
-        }
-
-    async function retrySyncItem(retryButton) {
-    const itemId = retryButton.dataset.id;
-    const queue = getOfflineQueue();
-    const itemToRetry = queue.find(item => item.id === itemId);
-    if (!itemToRetry) return;
-
-    retryButton.disabled = true;
-    retryButton.innerHTML = `<div class="retry-loader"></div>`;
-
-    try {
-        const response = await fetch(GAS_URL_POST, {
-            method: 'POST', body: JSON.stringify(itemToRetry), headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-        });
-        if (!response.ok) throw new Error("Server error");
-        const result = await response.json();
-        if (result.status !== 'success') throw new Error(result.message);
-
-        showStatus(`Record for ${itemToRetry.name} synced successfully!`, 'success');
-        const newQueue = queue.filter(item => item.id !== itemId);
-        localStorage.setItem('attendance_queue', JSON.stringify(newQueue));
-        showPendingSyncs(); // Refresh the modal list
-        updateSyncStatus();
-    } catch (error) {
-        showStatus(`Retry failed: ${error.message}`, 'error');
-        retryButton.disabled = false;
-        retryButton.textContent = 'Retry';
-    }
-}
-
-function deleteSyncItem(itemId) {
-    // Using a custom modal for confirmation would be better, but window.confirm is simpler for now.
-    if (!confirm('Are you sure you want to delete this pending record? This cannot be undone.')) {
-        return;
-    }
-    let queue = getOfflineQueue();
-    const newQueue = queue.filter(item => item.id !== itemId);
-    localStorage.setItem('attendance_queue', JSON.stringify(newQueue));
-    showStatus('Pending record deleted.', 'success');
-    showPendingSyncs();
-    updateSyncStatus();
-}
-        
-        // PASTE THIS NEW FUNCTION
-function showPendingSyncs() {
-    const queue = getOfflineQueue();
-    elements.pendingList.innerHTML = '';
-    if (queue.length === 0) {
-        elements.pendingList.innerHTML = `<li class="text-center text-gray-500 p-4">No pending records.</li>`;
-    } else {
-        queue.forEach(item => {
-            const li = document.createElement('li');
-            li.className = 'p-2 bg-white rounded shadow-sm text-sm flex justify-between items-center';
-            li.innerHTML = `
-                <div>
-                    <div class="font-bold">${item.name} (${item.empId})</div>
-                    <div class="text-xs text-gray-600">Saved at ${new Date(parseInt(item.id.split('_')[1])).toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit', second:'2-digit'})}</div>
-                </div>
-                <div class="flex gap-2">
-                    <button data-id="${item.id}" class="retry-btn text-xs bg-indigo-100 text-indigo-700 font-semibold px-2 py-1 rounded-md btn">Retry</button>
-                    <button data-id="${item.id}" class="delete-btn text-xs bg-red-100 text-red-700 font-semibold px-2 py-1 rounded-md btn">Delete</button>
-                </div>
-            `;
-            elements.pendingList.appendChild(li);
-        });
-    }
-    elements.pendingSyncModal.classList.remove('hidden');
-}
-
+        // Re-adding event listeners with proper IndexedDB hooks
         function addEventListeners() {
             elements.inBtn.addEventListener('click', () => openConfirmationModal('IN'));
             elements.outBtn.addEventListener('click', () => openConfirmationModal('OUT'));
             elements.confirmBtn.addEventListener('click', executeAttendance);
             elements.cancelBtn.addEventListener('click', closeConfirmationModal);
             elements.empIdInput.addEventListener('input', handleIdInput);
-            elements.empIdInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); elements.empIdInput.blur(); } });
-            
-            elements.switchCameraBtn.addEventListener('click', async () => {
-                state.currentDeviceIndex = (state.currentDeviceIndex + 1) % state.videoDevices.length;
-                recapture();
-                await startStream();
-            });
-            elements.torchBtn.addEventListener('click', toggleTorch);
             elements.recaptureBtn.addEventListener('click', recapture);
-            
             elements.statusSync.addEventListener('click', showPendingSyncs);
             elements.closeSyncModalBtn.addEventListener('click', () => elements.pendingSyncModal.classList.add('hidden'));
-
-            elements.applyLeaveBtn.addEventListener('click', () => elements.leaveModal.classList.remove('hidden'));
-            elements.closeLeaveModalBtn.addEventListener('click', () => {
-            elements.pendingList.addEventListener('click', (event) => {
-    const target = event.target;
-    if (target.classList.contains('retry-btn')) {
-        retrySyncItem(target);
-    } else if (target.classList.contains('delete-btn')) {
-        deleteSyncItem(target.dataset.id);
-    }
-});
-                elements.leaveModal.classList.add('hidden');
-                elements.leaveForm.reset();
-            });
-            elements.leaveForm.addEventListener('submit', handleLeaveRequest);
         }
 
-        function init() {
-            elements.recaptureBtn.innerHTML = icons.recapture;
-            elements.torchBtn.innerHTML = icons.torchOff;
-            elements.switchCameraBtn.innerHTML = icons.switchCamera;
-            startClock();
-            handleNetworkStatus();
-            updateSyncStatus();
-            initializeCamera();
-            fetchEmployeeData();
-            addEventListeners();
-        }
-        
         init();
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
