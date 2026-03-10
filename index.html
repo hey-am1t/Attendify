@@ -335,14 +335,59 @@ const icons = {
             finally { btn.innerHTML = status; recapture(); }
         }
 
-        // --- CAMERA & FACE DETECTION ---
+        
+        // --- CAMERA SCRIPT REPLACEMENT ---
         async function initializeCamera() {
+            elements.videoLoader.classList.remove('hidden');
+            if (!navigator.mediaDevices?.getUserMedia) return showStatus("Camera not supported", "error");
+            
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-                elements.video.srcObject = stream; state.currentStream = stream;
-                elements.videoLoader.classList.add('hidden'); elements.video.classList.remove('hidden');
-                loadFaceApiModels();
-            } catch (e) { showStatus("Camera access denied.", "error"); }
+                // 1. Scan for all available lenses
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                state.videoDevices = devices.filter(d => d.kind === 'videoinput');
+                
+                // Show switch button if device has more than 1 camera (Front/Back)
+                if (state.videoDevices.length > 1) {
+                    elements.switchCameraBtn.classList.remove('hidden');
+                }
+                
+                // 2. Build constraints to use the selected lens
+                const constraints = { video: { facingMode: 'user' } };
+                if (state.videoDevices.length > 0) {
+                    constraints.video = { deviceId: { exact: state.videoDevices[state.currentDeviceIndex].deviceId } };
+                }
+
+                // 3. Start the stream
+                state.currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                elements.video.srcObject = state.currentStream;
+                elements.videoLoader.classList.add('hidden'); 
+                elements.video.classList.remove('hidden');
+                
+                // 4. Check if the current lens has a flashlight (Torch)
+                const track = state.currentStream.getVideoTracks()[0];
+                state.isTorchSupported = !!track.getCapabilities().torch;
+                elements.torchBtn.classList.toggle('hidden', !state.isTorchSupported);
+                
+                loadFaceApiModels(); 
+            } catch (error) {
+                // Fallback for strict browsers
+                try {
+                    state.currentStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    elements.video.srcObject = state.currentStream;
+                    elements.videoLoader.classList.add('hidden'); elements.video.classList.remove('hidden');
+                    loadFaceApiModels();
+                } catch(e) { showStatus("Camera access denied.", "error"); }
+            }
+        }
+
+        async function toggleTorch() {
+            if (!state.isTorchSupported) return;
+            const track = state.currentStream.getVideoTracks()[0];
+            state.isTorchOn = !state.isTorchOn;
+            try {
+                await track.applyConstraints({ advanced: [{ torch: state.isTorchOn }] });
+                elements.torchBtn.innerHTML = state.isTorchOn ? icons.torchOn : icons.torchOff;
+            } catch(err) { showStatus('Could not control flash.', 'error'); }
         }
 
         async function loadFaceApiModels() {
@@ -493,5 +538,6 @@ const icons = {
     </script>
 </body>
 </html>
+
 
 
