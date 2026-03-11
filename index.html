@@ -350,23 +350,7 @@ const icons = {
                 if (state.videoDevices.length > 1) {
                     elements.switchCameraBtn.classList.remove('hidden');
                 }
-                //Testing --- FIXED CAMERA SWITCH LOGIC ---
-        elements.switchCameraBtn.onclick = async () => {
-            // Do nothing if there's only 1 camera (e.g., a laptop)
-            if (state.videoDevices.length < 2) return;
-            
-            // 1. Stop the current face detection so the browser doesn't crash
-            if (state.faceDetectionInterval) clearInterval(state.faceDetectionInterval);
-            
-            // 2. Cycle to the next camera lens (Front to Back, or Back to Front)
-            state.currentDeviceIndex = (state.currentDeviceIndex + 1) % state.videoDevices.length;
-            
-            // 3. Restart the stream with the new lens
-            await startStream();
-            
-            // 4. Resume the UI and AI
-            recapture(); 
-        };
+                
                 // 2. Build constraints to use the selected lens
                 const constraints = { video: { facingMode: 'user' } };
                 if (state.videoDevices.length > 0) {
@@ -535,7 +519,23 @@ const icons = {
         elements.confirmBtn.onclick = executeAttendance;
         elements.recaptureBtn.onclick = recapture;
         elements.empIdInput.oninput = handleIdInput;
-        
+        // --- FIXED CAMERA SWITCH LOGIC ---
+        elements.switchCameraBtn.onclick = async () => {
+            // Do nothing if there's only 1 camera (e.g., a laptop)
+            if (state.videoDevices.length < 2) return;
+            
+            // 1. Stop the current face detection so the browser doesn't crash
+            if (state.faceDetectionInterval) clearInterval(state.faceDetectionInterval);
+            
+            // 2. Cycle to the next camera lens (Front to Back, or Back to Front)
+            state.currentDeviceIndex = (state.currentDeviceIndex + 1) % state.videoDevices.length;
+            
+            // 3. Restart the stream with the new lens
+            await startStream();
+            
+            // 4. Resume the UI and AI
+            recapture(); 
+        };
         elements.statusSync.onclick = showPendingSyncs;
         elements.closeSyncModalBtn.onclick = () => elements.pendingSyncModal.classList.add('hidden');
         
@@ -554,6 +554,7 @@ const icons = {
     </script>
 </body>
 </html>
+
 
 
 
