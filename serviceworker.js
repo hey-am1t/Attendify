@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v5.1';
+const CACHE_VERSION = 'v6';
 const CORE_CACHE_NAME = `attendify-core-${CACHE_VERSION}`;
 const DYNAMIC_CACHE_NAME = `attendify-dynamic-${CACHE_VERSION}`;
 
