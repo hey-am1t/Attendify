@@ -353,7 +353,7 @@ const icons = {
             } catch (error) { showStatus("Camera access denied.", "error"); }
         }
 
-        async function startStream() {
+       async function startStream() {
             // 1. FULLY destroy the old stream to release the hardware
             if (state.currentStream) {
                 state.currentStream.getTracks().forEach(track => track.stop());
@@ -389,15 +389,6 @@ const icons = {
                 } catch(err) { 
                     showStatus("Camera access denied.", "error"); 
                 }
-            }
-        }
-                // Fallback for strict browsers
-                try {
-                    state.currentStream = await navigator.mediaDevices.getUserMedia({ video: true });
-                    elements.video.srcObject = state.currentStream;
-                    elements.videoLoader.classList.add('hidden'); elements.video.classList.remove('hidden');
-                    loadFaceApiModels();
-                } catch(e) { showStatus("Camera access denied.", "error"); }
             }
         }
 
@@ -562,8 +553,6 @@ const icons = {
 
         // Add this missing line right here!
         elements.torchBtn.onclick = toggleTorch; 
-        
-        elements.statusSync.onclick = showPendingSyncs;
         elements.statusSync.onclick = showPendingSyncs;
         elements.closeSyncModalBtn.onclick = () => elements.pendingSyncModal.classList.add('hidden');
         
@@ -582,6 +571,7 @@ const icons = {
     </script>
 </body>
 </html>
+
 
 
 
