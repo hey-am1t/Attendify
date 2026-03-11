@@ -358,9 +358,12 @@ const icons = {
             if (state.currentStream) {
                 state.currentStream.getTracks().forEach(track => track.stop());
                 elements.video.srcObject = null;
+                
+                // CRITICAL FIX: Give mobile hardware 200ms to physically release the camera lens
+                await new Promise(resolve => setTimeout(resolve, 200)); 
             }
             
-            // 2. Use facingMode (Bulletproof for mobile) instead of deviceIds
+            // 2. Request the specific lens
             const constraints = { 
                 video: { facingMode: state.useFrontCamera ? 'user' : 'environment' } 
             };
@@ -373,21 +376,30 @@ const icons = {
                 
                 checkTorchSupport(); 
                 
-                // 3. Smart AI Loading: Load models if it's the first time, otherwise just resume
                 if (!state.isFaceDetectionReady) {
                     loadFaceApiModels(); 
                 } else {
                     recapture();
                 }
             } catch (e) {
-                // 4. Fallback for strict browsers inside the main catch block
+                // 3. Fallback: If 'facingMode' fails on strict browsers, forcefully use Device IDs
                 try {
-                    state.currentStream = await navigator.mediaDevices.getUserMedia({ video: true });
-                    elements.video.srcObject = state.currentStream;
-                    elements.videoLoader.classList.add('hidden'); elements.video.classList.remove('hidden');
-                    loadFaceApiModels();
+                     if (state.videoDevices.length > 1) {
+                         // Pick the first camera for front, or the last camera for back
+                         const targetDevice = state.useFrontCamera ? state.videoDevices[0] : state.videoDevices[state.videoDevices.length - 1];
+                         state.currentStream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: targetDevice.deviceId } } });
+                         
+                         elements.video.srcObject = state.currentStream;
+                         elements.videoLoader.classList.add('hidden'); elements.video.classList.remove('hidden');
+                         
+                         if (!state.isFaceDetectionReady) loadFaceApiModels(); else recapture();
+                     } else {
+                         throw new Error("Secondary camera not found by browser.");
+                     }
                 } catch(err) { 
-                    showStatus("Camera access denied.", "error"); 
+                    showStatus("Camera switch failed.", "error"); 
+                    // Instantly send this specific failure to your Logs sheet!
+                    window.onerror("Camera Switch Error: " + err.message, "index.html", 0, 0, err);
                 }
             }
         }
@@ -571,6 +583,7 @@ const icons = {
     </script>
 </body>
 </html>
+
 
 
 
