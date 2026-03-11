@@ -380,7 +380,15 @@ const icons = {
                     recapture();
                 }
             } catch (e) {
-                showStatus("Error starting camera lens.", "error");
+                // 4. Fallback for strict browsers inside the main catch block
+                try {
+                    state.currentStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    elements.video.srcObject = state.currentStream;
+                    elements.videoLoader.classList.add('hidden'); elements.video.classList.remove('hidden');
+                    loadFaceApiModels();
+                } catch(err) { 
+                    showStatus("Camera access denied.", "error"); 
+                }
             }
         }
                 // Fallback for strict browsers
@@ -551,6 +559,11 @@ const icons = {
             
             elements.switchCameraBtn.disabled = false;
         };
+
+        // Add this missing line right here!
+        elements.torchBtn.onclick = toggleTorch; 
+        
+        elements.statusSync.onclick = showPendingSyncs;
         elements.statusSync.onclick = showPendingSyncs;
         elements.closeSyncModalBtn.onclick = () => elements.pendingSyncModal.classList.add('hidden');
         
@@ -569,6 +582,7 @@ const icons = {
     </script>
 </body>
 </html>
+
 
 
 
