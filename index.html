@@ -337,33 +337,30 @@ const icons = {
 
         
         // --- CAMERA SCRIPT REPLACEMENT ---
+        // --- CAMERA SCRIPT REPLACEMENT ---
         async function initializeCamera() {
             elements.videoLoader.classList.remove('hidden');
             if (!navigator.mediaDevices?.getUserMedia) return showStatus("Camera not supported", "error");
             
             try {
-                // Check if device has multiple cameras just to show/hide the button
                 const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoInputs = devices.filter(d => d.kind === 'videoinput');
-                if (videoInputs.length > 1) elements.switchCameraBtn.classList.remove('hidden');
                 
-                // Default to the front camera
+                // FIX #1: Actually save the camera list to memory so the fallback works!
+                state.videoDevices = devices.filter(d => d.kind === 'videoinput');
+                if (state.videoDevices.length > 1) elements.switchCameraBtn.classList.remove('hidden');
+                
                 state.useFrontCamera = true; 
                 await startStream();
             } catch (error) { showStatus("Camera access denied.", "error"); }
         }
 
-       async function startStream() {
-            // 1. FULLY destroy the old stream to release the hardware
+        async function startStream() {
             if (state.currentStream) {
                 state.currentStream.getTracks().forEach(track => track.stop());
                 elements.video.srcObject = null;
-                
-                // CRITICAL FIX: Give mobile hardware 200ms to physically release the camera lens
-                await new Promise(resolve => setTimeout(resolve, 200)); 
+                await new Promise(resolve => setTimeout(resolve, 300)); // Give hardware time to release
             }
             
-            // 2. Request the specific lens
             const constraints = { 
                 video: { facingMode: state.useFrontCamera ? 'user' : 'environment' } 
             };
@@ -371,49 +368,54 @@ const icons = {
             try {
                 state.currentStream = await navigator.mediaDevices.getUserMedia(constraints);
                 elements.video.srcObject = state.currentStream;
+                
+                // CRITICAL FIX: Force the video to play before checking for flash
+                await elements.video.play(); 
+                
                 elements.videoLoader.classList.add('hidden'); 
                 elements.video.classList.remove('hidden');
                 
-                checkTorchSupport(); 
+                // FIX #2: Wait half a second for the lens to power up before checking for Torch
+                setTimeout(checkTorchSupport, 500); 
                 
-                if (!state.isFaceDetectionReady) {
-                    loadFaceApiModels(); 
-                } else {
-                    recapture();
-                }
+                if (!state.isFaceDetectionReady) loadFaceApiModels(); 
+                else recapture();
             } catch (e) {
-                // 3. Fallback: If 'facingMode' fails on strict browsers, forcefully use Device IDs
+                // Fallback using exact device IDs if the phone blocks facingMode
                 try {
-                     if (state.videoDevices.length > 1) {
-                         // Pick the first camera for front, or the last camera for back
+                     if (state.videoDevices && state.videoDevices.length > 0) {
                          const targetDevice = state.useFrontCamera ? state.videoDevices[0] : state.videoDevices[state.videoDevices.length - 1];
                          state.currentStream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: targetDevice.deviceId } } });
-                         
                          elements.video.srcObject = state.currentStream;
-                         elements.videoLoader.classList.add('hidden'); elements.video.classList.remove('hidden');
+                         await elements.video.play();
                          
+                         elements.videoLoader.classList.add('hidden'); elements.video.classList.remove('hidden');
+                         setTimeout(checkTorchSupport, 500);
                          if (!state.isFaceDetectionReady) loadFaceApiModels(); else recapture();
                      } else {
-                         throw new Error("Secondary camera not found by browser.");
+                         throw new Error("No cameras found in fallback array.");
                      }
                 } catch(err) { 
                     showStatus("Camera switch failed.", "error"); 
-                    // Instantly send this specific failure to your Logs sheet!
                     window.onerror("Camera Switch Error: " + err.message, "index.html", 0, 0, err);
                 }
             }
         }
 
-        async function toggleTorch() {
-            if (!state.isTorchSupported) return;
-            const track = state.currentStream.getVideoTracks()[0];
-            state.isTorchOn = !state.isTorchOn;
+        async function checkTorchSupport() {
+            if (!state.currentStream) return;
             try {
-                await track.applyConstraints({ advanced: [{ torch: state.isTorchOn }] });
-                elements.torchBtn.innerHTML = state.isTorchOn ? icons.torchOn : icons.torchOff;
-            } catch(err) { showStatus('Could not control flash.', 'error'); }
+                const track = state.currentStream.getVideoTracks()[0];
+                const capabilities = track.getCapabilities();
+                
+                // FIX: Flash is strictly for the Back Camera (environment)
+                state.isTorchSupported = !!capabilities.torch && !state.useFrontCamera;
+                elements.torchBtn.classList.toggle('hidden', !state.isTorchSupported);
+            } catch (e) { 
+                state.isTorchSupported = false; 
+                elements.torchBtn.classList.add('hidden'); 
+            }
         }
-
         async function loadFaceApiModels() {
             await faceapi.nets.tinyFaceDetector.loadFromUri(FACEAPI_MODEL_URL);
             state.isFaceDetectionReady = true; startFaceDetection();
@@ -583,6 +585,7 @@ const icons = {
     </script>
 </body>
 </html>
+
 
 
 
