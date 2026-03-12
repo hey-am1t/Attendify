@@ -85,6 +85,13 @@
             </div>
 
             <div id="status-message" class="text-center text-sm font-medium p-3 rounded-lg hidden fade-in absolute bottom-0 left-0 w-full z-10 shadow-lg"></div>
+        <div id="status-message" class="text-center text-sm font-medium p-3 rounded-lg hidden fade-in absolute bottom-0 left-0 w-full z-10 shadow-lg"></div>
+        </main>
+        
+        <div id="update-toast" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-5 py-3 rounded-full shadow-2xl flex items-center gap-4 z-50 hidden transition-all duration-300 w-max">
+            <span class="text-sm font-medium">App update available!</span>
+            <button id="refresh-btn" class="bg-indigo-500 hover:bg-indigo-400 text-white text-xs font-bold py-1.5 px-3 rounded-full transition-colors">Refresh</button>
+        </div>
         </main>
     </div>
 
@@ -436,17 +443,27 @@
         }
 
         function startFaceDetection() {
+            // Clear any old intervals to prevent overlapping memory leaks
+            if (state.faceDetectionInterval) clearInterval(state.faceDetectionInterval);
+            
             state.faceDetectionInterval = setInterval(async () => {
-                if (elements.video.paused) return;
-                const detect = await faceapi.detectAllFaces(elements.video, new faceapi.TinyFaceDetectorOptions());
+                if (elements.video.paused || !state.isFaceDetectionReady) return;
+                
+                // OPTIMIZATION: inputSize 224 is much faster on mobile CPUs, threshold 0.4 allows faster locks
+                const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 });
+                const detect = await faceapi.detectAllFaces(elements.video, options);
+                
                 if (detect.length === 1) {
                     elements.video.pause();
                     elements.faceDetectionStatus.textContent = "Face Detected!";
                     elements.faceDetectionStatus.className = "text-center text-sm font-medium p-2 rounded-lg bg-green-100 text-green-700";
                     elements.recaptureBtn.classList.remove('hidden');
                     if (elements.empIdInput.value) { elements.inBtn.disabled = false; elements.outBtn.disabled = false; }
+                } else if (detect.length > 1) {
+                    elements.faceDetectionStatus.textContent = "Multiple faces detected!";
+                    elements.faceDetectionStatus.className = "text-center text-sm font-medium p-2 rounded-lg bg-yellow-100 text-yellow-700";
                 }
-            }, 1000);
+            }, 800); // Changed from 1000ms to 800ms for slightly faster response
         }
 
         function recapture() {
@@ -580,16 +597,37 @@
         elements.applyLeaveBtn.onclick = () => elements.leaveModal.classList.remove('hidden');
         elements.closeLeaveModalBtn.onclick = () => elements.leaveModal.classList.add('hidden');
 
-        function init() {
+       function init() {
             elements.recaptureBtn.innerHTML = icons.recapture; elements.torchBtn.innerHTML = icons.torchOff; elements.switchCameraBtn.innerHTML = icons.switchCamera;
             syncTrueTime(); startClock(); initializeCamera(); fetchEmployeeData(); updateSyncStatus();
             
             window.addEventListener('online', () => { elements.networkText.textContent = 'Online'; elements.networkText.className = 'text-green-600'; });
             window.addEventListener('offline', () => { elements.networkText.textContent = 'Offline'; elements.networkText.className = 'text-red-600'; });
             if(navigator.onLine) elements.networkText.textContent = 'Online'; else elements.networkText.textContent = 'Offline';
+
+            // --- PWA UPDATE LISTENER ---
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('serviceworker.js').then(reg => {
+                    reg.addEventListener('updatefound', () => {
+                        const newWorker = reg.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                // Show the update popup
+                                document.getElementById('update-toast').classList.remove('hidden');
+                                document.getElementById('refresh-btn').onclick = () => {
+                                    newWorker.postMessage({ action: 'skipWaiting' });
+                                    setTimeout(() => window.location.reload(), 300);
+                                };
+                            }
+                        });
+                    });
+                });
+            }
         }
+
         
         init();
     </script>
 </body>
 </html>
+
