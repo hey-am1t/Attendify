@@ -331,13 +331,16 @@ const icons = {
                     updateSyncStatus();
                 }
                 elements.empIdInput.value = ''; handleIdInput();
-            } catch (err) { showStatus(err.message, "error"); }
+            } catch (err) { 
+                // FIX #3: Make failures explicitly visible to the user
+                showStatus(err.message, "error"); 
+                alert("Action Failed: " + err.message); // This forces a loud popup!
+            }
             finally { btn.innerHTML = status; recapture(); }
         }
 
         
-        // --- CAMERA SCRIPT REPLACEMENT ---
-        // --- CAMERA SCRIPT REPLACEMENT ---
+    // --- CAMERA SCRIPT REPLACEMENT ---
         async function initializeCamera() {
             elements.videoLoader.classList.remove('hidden');
             if (!navigator.mediaDevices?.getUserMedia) return showStatus("Camera not supported", "error");
@@ -585,6 +588,7 @@ const icons = {
     </script>
 </body>
 </html>
+
 
 
 
