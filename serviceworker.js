@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v8'; // Bumped to v8 for this update
+const CACHE_VERSION = 'v9';
 const CORE_CACHE_NAME = `attendify-core-${CACHE_VERSION}`;
 const DYNAMIC_CACHE_NAME = `attendify-dynamic-${CACHE_VERSION}`;
 
@@ -98,4 +98,10 @@ self.addEventListener('fetch', event => {
       });
     })
   );
+});
+// --- LISTEN FOR REFRESH COMMAND ---
+self.addEventListener('message', event => {
+  if (event.data && event.data.action === 'skipWaiting') {
+    self.skipWaiting();
+  }
 });
