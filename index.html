@@ -405,18 +405,23 @@ const icons = {
             }
         }
 
-        async function checkTorchSupport() {
-            if (!state.currentStream) return;
+       async function toggleTorch() {
+            if (!state.isTorchSupported || !state.currentStream) return;
+            
             try {
                 const track = state.currentStream.getVideoTracks()[0];
-                const capabilities = track.getCapabilities();
+                state.isTorchOn = !state.isTorchOn;
                 
-                // FIX: Flash is strictly for the Back Camera (environment)
-                state.isTorchSupported = !!capabilities.torch && !state.useFrontCamera;
-                elements.torchBtn.classList.toggle('hidden', !state.isTorchSupported);
-            } catch (e) { 
-                state.isTorchSupported = false; 
-                elements.torchBtn.classList.add('hidden'); 
+                // Apply the torch constraint to the active camera track
+                await track.applyConstraints({
+                    advanced: [{ torch: state.isTorchOn }]
+                });
+                
+                // Update the button icon
+                elements.torchBtn.innerHTML = state.isTorchOn ? icons.torchOn : icons.torchOff;
+            } catch (err) {
+                showStatus('Could not control flash.', 'error');
+                window.onerror("Torch Error: " + err.message, "index.html", 0, 0, err);
             }
         }
         async function loadFaceApiModels() {
@@ -588,6 +593,7 @@ const icons = {
     </script>
 </body>
 </html>
+
 
 
 
