@@ -16,7 +16,7 @@
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
         .video-container { border: 10px solid white; box-shadow: 0 4px 8px rgba(0,0,0,0.1), 0 6px 20px rgba(0,0,0,0.1); border-radius: 0.5rem; background: #e5e7eb; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; min-height: 240px; }
         
-        /* FIX: Forces actual preview (No Mirror Reflection) */
+        /* Forces actual preview (No Mirror Reflection) */
         .video-container video { transform: scaleX(1) !important; object-fit: cover; }
         
         .btn { transition: all 0.2s ease-in-out; }
@@ -62,11 +62,10 @@
             </div>
             
             <div class="space-y-3 relative">
-
-<div>
-    <label for="emp-id" class="block text-sm font-medium text-gray-700 mb-1">Employee ID</label>
-    <input type="text" id="emp-id" inputmode="numeric" placeholder="Loading instantly..." disabled class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 uppercase">
-</div>
+                <div>
+                    <label for="emp-id" class="block text-sm font-medium text-gray-700 mb-1">Employee ID</label>
+                    <input type="text" id="emp-id" inputmode="numeric" placeholder="Loading instantly..." disabled class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 uppercase">
+                </div>
                 <div>
                     <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
                     <input type="text" id="name" placeholder="Auto-filled" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg">
@@ -151,7 +150,7 @@
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbzdQpbqWwbFLMvdZEn4xHM0QcDS4LtExrpvGAOjcGtxsU7zVqDGSLlj3z7loWmPtSrS/exec';
         const FACEAPI_MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights';
         
-        // --- GLOBAL ERROR LOGGER (Safely catches UI crashes) ---
+        // --- GLOBAL ERROR LOGGER ---
         window.onerror = function(message, source, lineno, colno, error) {
             try {
                 if (navigator.onLine) {
@@ -189,7 +188,7 @@
             faceDetectionInterval: null, timeOffset: 0
         };
 
-const icons = {
+        const icons = {
              recapture: `<svg width="24" height="24" viewBox="0 0 0.48 0.48" xmlns="http://www.w3.org/2000/svg"><path d="M.449.24h.003a.03.03 0 0 1 .025.034.24.24 0 0 1-.401.142L.051.441A.03.03 0 0 1 0 .42V.3h.12a.03.03 0 0 1 .021.051L.119.373a.18.18 0 0 0 .25-.008.2.2 0 0 0 .049-.1A.03.03 0 0 1 .452.24zM.345.024a.2.2 0 0 1 .058.04L.428.039A.03.03 0 0 1 .479.06v.12H.36A.03.03 0 0 1 .339.129L.361.107a.18.18 0 0 0-.299.108.03.03 0 1 1-.059-.008.24.24 0 0 1 .342-.183"/></svg>`,
              torchOn: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 2.1 2.1" xml:space="preserve"><path d="m1.442.19-.224.787h.332l-.738.902.145-.781H.55zm0-.113-.004.006a.12.12 0 0 0-.067.027l-.013.013-.891.898a.12.12 0 0 0-.026.127c.019.045.062.07.111.07h.262l-.119.655a.124.124 0 0 0 .067.133.1.1 0 0 0 .051.012.12.12 0 0 0 .092-.043l.738-.89c.03-.036.036-.101.016-.143S1.597.858 1.55.858h-.174l.18-.626a.117.117 0 0 0-.111-.154z"/><path d="M.812 1.028A.03.03 0 0 1 .79.978l.39-.42a.03.03 0 1 1 .044.041l-.39.42a.03.03 0 0 1-.022.01m.393.24a.03.03 0 0 1-.024-.048l.117-.15a.03.03 0 1 1 .047.037l-.117.15a.03.03 0 0 1-.024.012m-.093.12a.03.03 0 0 1-.018-.006.03.03 0 0 1-.005-.042l.023-.03a.03.03 0 0 1 .042-.005.03.03 0 0 1 .005.042l-.023.03a.03.03 0 0 1-.024.012"/></svg>`,
              torchOff: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 2.1 2.1" xml:space="preserve"><path d="m1.442.19-.224.787h.332l-.738.902.145-.781H.55zm0-.113-.004.006a.12.12 0 0 0-.067.027l-.013.013-.891.898a.12.12 0 0 0-.026.127c.019.045.062.07.111.07h.262l-.119.655a.124.124 0 0 0 .067.133.1.1 0 0 0 .051.012.12.12 0 0 0 .092-.043l.738-.89c.03-.036.036-.101.016-.143S1.597.858 1.55.858h-.174l.18-.626a.117.117 0 0 0-.111-.154z"/><path d="M.812 1.028A.03.03 0 0 1 .79.978l.39-.42a.03.03 0 1 1 .044.041l-.39.42a.03.03 0 0 1-.022.01m.393.24a.03.03 0 0 1-.024-.048l.117-.15a.03.03 0 1 1 .047.037l-.117.15a.03.03 0 0 1-.024.012m-.093.12a.03.03 0 0 1-.018-.006.03.03 0 0 1-.005-.042l.023-.03a.03.03 0 0 1 .042-.005.03.03 0 0 1 .005.042l-.023.03a.03.03 0 0 1-.024.012"/></svg>`,
@@ -225,7 +224,6 @@ const icons = {
         }
 
         async function fetchEmployeeData() {
-            // 1. Instantly load from cache if available
             const cachedData = localStorage.getItem('employee_db_cache');
             if (cachedData) {
                 state.employeeDatabase = JSON.parse(cachedData);
@@ -234,14 +232,13 @@ const icons = {
                 setupAutocomplete();
             }
 
-            // 2. Fetch fresh data in the background if online
             if (navigator.onLine) {
                 try {
                     const response = await fetch(`${GAS_URL}?action=getEmployees`, { redirect: 'follow' });
                     const result = await response.json();
                     if (result.status === 'success') {
                         state.employeeDatabase = result.data;
-                        localStorage.setItem('employee_db_cache', JSON.stringify(result.data)); // Update cache
+                        localStorage.setItem('employee_db_cache', JSON.stringify(result.data));
                         if (!cachedData) {
                             elements.empIdInput.disabled = false;
                             elements.empIdInput.placeholder = 'Enter Employee ID';
@@ -332,15 +329,13 @@ const icons = {
                 }
                 elements.empIdInput.value = ''; handleIdInput();
             } catch (err) { 
-                // FIX #3: Make failures explicitly visible to the user
                 showStatus(err.message, "error"); 
-                alert("Action Failed: " + err.message); // This forces a loud popup!
+                alert("Action Failed: " + err.message); 
             }
             finally { btn.innerHTML = status; recapture(); }
         }
 
-        
-    // --- CAMERA SCRIPT REPLACEMENT ---
+        // --- CAMERA SCRIPT REPLACEMENT ---
         async function initializeCamera() {
             elements.videoLoader.classList.remove('hidden');
             if (!navigator.mediaDevices?.getUserMedia) return showStatus("Camera not supported", "error");
@@ -348,7 +343,6 @@ const icons = {
             try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 
-                // FIX #1: Actually save the camera list to memory so the fallback works!
                 state.videoDevices = devices.filter(d => d.kind === 'videoinput');
                 if (state.videoDevices.length > 1) elements.switchCameraBtn.classList.remove('hidden');
                 
@@ -361,7 +355,7 @@ const icons = {
             if (state.currentStream) {
                 state.currentStream.getTracks().forEach(track => track.stop());
                 elements.video.srcObject = null;
-                await new Promise(resolve => setTimeout(resolve, 300)); // Give hardware time to release
+                await new Promise(resolve => setTimeout(resolve, 300)); 
             }
             
             const constraints = { 
@@ -372,19 +366,16 @@ const icons = {
                 state.currentStream = await navigator.mediaDevices.getUserMedia(constraints);
                 elements.video.srcObject = state.currentStream;
                 
-                // CRITICAL FIX: Force the video to play before checking for flash
                 await elements.video.play(); 
                 
                 elements.videoLoader.classList.add('hidden'); 
                 elements.video.classList.remove('hidden');
                 
-                // FIX #2: Wait half a second for the lens to power up before checking for Torch
                 setTimeout(checkTorchSupport, 500); 
                 
                 if (!state.isFaceDetectionReady) loadFaceApiModels(); 
                 else recapture();
             } catch (e) {
-                // Fallback using exact device IDs if the phone blocks facingMode
                 try {
                      if (state.videoDevices && state.videoDevices.length > 0) {
                          const targetDevice = state.useFrontCamera ? state.videoDevices[0] : state.videoDevices[state.videoDevices.length - 1];
@@ -405,25 +396,40 @@ const icons = {
             }
         }
 
-       async function toggleTorch() {
+        // --- MISSING FUNCTION ADDED ---
+        async function checkTorchSupport() {
+            if (!state.currentStream) return;
+            try {
+                const track = state.currentStream.getVideoTracks()[0];
+                const capabilities = track.getCapabilities();
+                
+                // Torch is only supported if the hardware has it AND we are using the back camera
+                state.isTorchSupported = !!capabilities.torch && !state.useFrontCamera;
+                elements.torchBtn.classList.toggle('hidden', !state.isTorchSupported);
+            } catch (e) { 
+                state.isTorchSupported = false; 
+                elements.torchBtn.classList.add('hidden'); 
+            }
+        }
+
+        async function toggleTorch() {
             if (!state.isTorchSupported || !state.currentStream) return;
             
             try {
                 const track = state.currentStream.getVideoTracks()[0];
                 state.isTorchOn = !state.isTorchOn;
                 
-                // Apply the torch constraint to the active camera track
                 await track.applyConstraints({
                     advanced: [{ torch: state.isTorchOn }]
                 });
                 
-                // Update the button icon
                 elements.torchBtn.innerHTML = state.isTorchOn ? icons.torchOn : icons.torchOff;
             } catch (err) {
                 showStatus('Could not control flash.', 'error');
                 window.onerror("Torch Error: " + err.message, "index.html", 0, 0, err);
             }
         }
+
         async function loadFaceApiModels() {
             await faceapi.nets.tinyFaceDetector.loadFromUri(FACEAPI_MODEL_URL);
             state.isFaceDetectionReady = true; startFaceDetection();
@@ -451,7 +457,7 @@ const icons = {
             elements.faceDetectionStatus.className = "text-center text-sm font-medium p-2 rounded-lg bg-blue-100 text-blue-700";
         }
 
-        // --- OFFLINE SYNC BOX (FIXED WITH EVENT DELEGATION) ---
+        // --- OFFLINE SYNC BOX ---
         async function updateSyncStatus() {
             const queue = await dbGetAll();
             elements.syncText.textContent = queue.length > 0 ? `Pending: ${queue.length}` : "Synced";
@@ -483,7 +489,6 @@ const icons = {
             elements.pendingSyncModal.classList.remove('hidden');
         }
 
-        // EVENT DELEGATION: Listens to clicks inside the list, even on newly created buttons
         elements.pendingList.addEventListener('click', async (e) => {
             const btn = e.target;
             const id = btn.dataset.id;
@@ -513,9 +518,9 @@ const icons = {
             }
         });
 
-        // --- LEAVE APPLICATION (FIXED ROUTING & PREVENT DEFAULT) ---
+        // --- LEAVE APPLICATION ---
         elements.leaveForm.addEventListener('submit', async (e) => {
-            e.preventDefault(); // STOPS THE PAGE FROM REFRESHING
+            e.preventDefault(); 
             
             const btn = elements.submitLeaveBtn;
             btn.innerHTML = `<div class="btn-loader"></div>`; btn.disabled = true;
@@ -553,27 +558,21 @@ const icons = {
         elements.confirmBtn.onclick = executeAttendance;
         elements.recaptureBtn.onclick = recapture;
         elements.empIdInput.oninput = handleIdInput;
-        // --- BULLETPROOF CAMERA SWITCH LOGIC ---
+        
         elements.switchCameraBtn.onclick = async () => {
-            elements.switchCameraBtn.disabled = true; // Prevent spam-clicking crashes
+            elements.switchCameraBtn.disabled = true; 
             
-            // 1. Stop AI to prevent memory leaks
             if (state.faceDetectionInterval) clearInterval(state.faceDetectionInterval);
-            
-            // 2. Toggle the camera mode flag
             state.useFrontCamera = !state.useFrontCamera;
             
-            // 3. Show loading UI while the hardware flips
             elements.video.classList.add('hidden');
             elements.videoLoader.classList.remove('hidden');
             
-            // 4. Start the new stream
             await startStream();
             
             elements.switchCameraBtn.disabled = false;
         };
 
-        // Add this missing line right here!
         elements.torchBtn.onclick = toggleTorch; 
         elements.statusSync.onclick = showPendingSyncs;
         elements.closeSyncModalBtn.onclick = () => elements.pendingSyncModal.classList.add('hidden');
@@ -589,19 +588,8 @@ const icons = {
             window.addEventListener('offline', () => { elements.networkText.textContent = 'Offline'; elements.networkText.className = 'text-red-600'; });
             if(navigator.onLine) elements.networkText.textContent = 'Online'; else elements.networkText.textContent = 'Offline';
         }
+        
         init();
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
