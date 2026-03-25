@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Attendify</title>
+    <meta name="theme-color" content="#4f46e5"/>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192x192.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -48,7 +51,7 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
                     <div class="relative">
-                        <input type="password" id="login-password" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="••••••••">
+                        <input type="password" id="login-password" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="•••••••">
                         <button type="button" id="toggle-password" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 font-bold">👁️</button>
                     </div>
                 </div>
@@ -100,12 +103,12 @@
                     <span class="w-2 h-6 bg-blue-500 rounded-full block"></span> Attendance Log
                 </h2>
                 
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3 mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200 items-end">
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200 items-end">
                     <input type="text" id="name-filter" placeholder="Search Name/ID..." class="w-full p-2.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500">
-                    <select id="department-filter" class="w-full p-2.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"><option value="">All Departments</option></select>
-                    <select id="year-filter" class="w-full p-2.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"></select>
-                    <select id="month-filter" class="w-full p-2.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"></select>
-                    <select id="day-filter" class="w-full p-2.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"></select>
+                    <select id="department-filter" class="w-full p-2.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"><option value="">Departments</option></select>
+                    
+                    <input type="date" id="date-filter" class="w-full p-2.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 text-gray-700">
+                    
                     <button id="apply-filter-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2.5 rounded-md transition-colors text-sm shadow-sm">Apply Filter</button>
                 </div>
                 
@@ -143,9 +146,7 @@
             pendingLeaveContainer: document.getElementById('pending-leave-table-container'),
             attendanceContainer: document.getElementById('attendance-table-container'),
             nameFilter: document.getElementById('name-filter'),
-            yearFilter: document.getElementById('year-filter'),
-            monthFilter: document.getElementById('month-filter'),
-            dayFilter: document.getElementById('day-filter'),
+            dateFilter: document.getElementById('date-filter'),
             departmentFilter: document.getElementById('department-filter'),
             togglePassword: document.getElementById('toggle-password'),
             applyFilterBtn: document.getElementById('apply-filter-btn') // <-- Ye add karein
@@ -318,8 +319,7 @@
 
         function renderAttendanceTable() {
             const searchTerm = elements.nameFilter.value.toLowerCase();
-            const day = elements.dayFilter.value;
-
+            const selectedDate = elements.dateFilter.value; // Format comes out as YYYY-MM-DD
             const selectedDept = elements.departmentFilter.value;
 
             const filtered = allData.attendance.filter(att => {
@@ -327,22 +327,30 @@
                 const nameMatch = (att.FullName || att['Full Name'] || '').toLowerCase();
                 const idMatch = (att.EmployeeID || att['Employee ID'] || '').toLowerCase();
                 
-                // Get employee's department
                 const emp = allData.employees.find(e => (e.EmployeeID || e['Employee ID']) === (att.EmployeeID || att['Employee ID'])) || {};
                 const empDept = emp.Department || '';
 
                 const matchesSearch = nameMatch.includes(searchTerm) || idMatch.includes(searchTerm);
-                const matchesDay = !day || date.getDate() == day;
                 const matchesDept = !selectedDept || empDept === selectedDept;
+                
+                // New Date Matching Logic
+                let matchesDate = true;
+                if (selectedDate) {
+                    const localMonth = String(date.getMonth() + 1).padStart(2, '0');
+                    const localDay = String(date.getDate()).padStart(2, '0');
+                    const localYMD = `${date.getFullYear()}-${localMonth}-${localDay}`;
+                    matchesDate = localYMD === selectedDate;
+                }
 
-                return matchesSearch && matchesDay && matchesDept;
+                return matchesSearch && matchesDept && matchesDate;
             });
 
             const tableRows = filtered.map(att => {
                 const stat = att.Status || att['Status (IN/OUT)'];
                 const statColor = stat === 'IN' ? 'text-green-700 bg-green-100 border-green-200' : 'text-red-700 bg-red-100 border-red-200';
                 const timeSource = att['Time Source'] || 'Server (Live)';
-	            const locationText = att['Address'] || att['Location (Lat, Long)'] || 'Location not recorded';
+                const locationText = att['Address'] || att['Location (Lat, Long)'] || 'Location not recorded';
+
                 return `
                 <tr class="hover:bg-gray-50 border-b transition-colors">
                     <td class="p-3 md:p-4 whitespace-nowrap">
@@ -357,68 +365,41 @@
                         <span class="px-3 py-1 rounded-md text-xs font-bold border ${statColor}">${stat}</span>
                     </td>
                     <td class="p-3 md:p-4 whitespace-nowrap">
-                        <a href="${att.PhotoURL || att['Photo URL'] || att['Photo Link']}" target="_blank" class="text-xs bg-indigo-50 text-indigo-700 font-bold px-3 py-1.5 rounded hover:bg-indigo-100 transition-colors inline-flex items-center gap-1"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Photo</a>
+                        <a href="${att.PhotoURL || att['Photo URL'] || att['Photo Link']}" target="_blank" class="text-xs bg-indigo-50 text-indigo-700 font-bold px-3 py-1.5 rounded hover:bg-indigo-100 transition-colors inline-flex items-center gap-1">📸 Photo</a>
                     </td>
+                    <td class="p-3 md:p-4 text-xs text-gray-600 max-w-xs truncate" title="${locationText}">${locationText}</td>
                     <td class="p-3 md:p-4 whitespace-nowrap text-xs text-gray-500 font-medium">${timeSource}</td>
-<td class="p-3 text-xs text-gray-500 max-w-xs truncate" title="${locationText}">${locationText}</td>
                 </tr>
             `}).join('');
 
             elements.attendanceContainer.innerHTML = `
                 <table class="w-full text-sm text-left">
                     <thead class="text-xs text-gray-500 uppercase table-header bg-gray-100/50 shadow-sm">
-                        <tr><th class="p-3 md:p-4">Time & Date</th><th class="p-3 md:p-4">Employee</th><th class="p-3 md:p-4">Action</th><th class="p-3 md:p-4">Verification</th><th class="p-3 md:p-4">Source</th><th class="p-3">Location</th></tr>
+                        <tr><th class="p-3 md:p-4">Time & Date</th><th class="p-3 md:p-4">Employee</th><th class="p-3 md:p-4">Action</th><th class="p-3 md:p-4">Verification</th><th class="p-3">Location</th><th class="p-3 md:p-4">Source</th></tr>
                     </thead>
-                    <tbody class="bg-white">${tableRows || '<tr><td colspan="5" class="p-8 text-center text-gray-500 font-medium">No records found matching your filters.</td></tr>'}</tbody>
+                    <tbody class="bg-white">${tableRows || '<tr><td colspan="6" class="p-8 text-center text-gray-500 font-medium">No records found matching your filters.</td></tr>'}</tbody>
                 </table>
             `;
         }
 
-        // --- FILTERS ---
         function initializeFilters() {
             const depts = [...new Set(allData.employees.map(e => e.Department).filter(d => d))].sort();
             elements.departmentFilter.innerHTML = '<option value="">All Departments</option>' + depts.map(d => `<option value="${d}">${d}</option>`).join('');
-            const years = [...new Set(allData.attendance.map(att => new Date(att.Timestamp).getFullYear()))].filter(y => !isNaN(y)).sort((a,b) => b-a);
-            elements.yearFilter.innerHTML = '<option value="">All Years</option>' + years.map(y => `<option>${y}</option>`).join('');
-            updateMonthFilter();
-        }
-
-        function updateMonthFilter() {
-            const year = elements.yearFilter.value;
-            const months = [...new Set(allData.attendance
-                .filter(att => !year || new Date(att.Timestamp).getFullYear() == year)
-                .map(att => new Date(att.Timestamp).getMonth() + 1)
-            )].filter(m => !isNaN(m)).sort((a,b) => a-b);
             
-            const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-            elements.monthFilter.innerHTML = '<option value="">All Months</option>' + months.map(m => `<option value="${m}">${monthNames[m-1]}</option>`).join('');
-            updateDayFilter();
+            // Set today's date as default in the calendar picker
+            const today = new Date();
+            const localYMD = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            elements.dateFilter.value = localYMD;
         }
 
-        function updateDayFilter() {
-            const year = elements.yearFilter.value;
-            const month = elements.monthFilter.value;
-            const days = [...new Set(allData.attendance
-                .filter(att => (!year || new Date(att.Timestamp).getFullYear() == year) && (!month || new Date(att.Timestamp).getMonth() + 1 == month))
-                .map(att => new Date(att.Timestamp).getDate())
-            )].filter(d => !isNaN(d)).sort((a,b) => a-b);
-            elements.dayFilter.innerHTML = '<option value="">All Days</option>' + days.map(d => `<option>${d}</option>`).join('');
-        }
-        
-        // Dropdowns will only update each other, but NOT render the table automatically
-        elements.yearFilter.addEventListener('change', updateMonthFilter);
-        elements.monthFilter.addEventListener('change', updateDayFilter);
-
-        // ONLY this button will execute the table filtering
         elements.applyFilterBtn.addEventListener('click', () => {
             elements.applyFilterBtn.innerHTML = '<div class="loader inline-block border-white border-2 w-4 h-4"></div>';
             setTimeout(() => {
                 renderAttendanceTable();
                 elements.applyFilterBtn.innerHTML = 'Apply Filter';
-            }, 300); // Small delay to feel responsive
+            }, 300);
         });
 
-        // Allow pressing 'Enter' on the search box to apply filter
         elements.nameFilter.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') elements.applyFilterBtn.click();
         });
@@ -432,6 +413,10 @@
             elements.loginBtn.click();
         }
     });
+    // --- PWA SERVICE WORKER ---
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('serviceworker.js');
+        }
     </script>
 </body>
 </html>
