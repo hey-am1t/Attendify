@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Attendify</title>
+    <meta name="theme-color" content="#4f46e5"/>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192x192.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .card { background-color: white; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+        .table-header { position: sticky; top: 0; background-color: #f9fafb; z-index: 10; }
+        .loader { border: 4px solid rgba(0,0,0,0.1); border-left-color: #4f46e5; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        /* Custom scrollbar for tables */
+        .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #c7c7cc; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a0a0a5; }
+        /* Fancy Button Style */
+        .fancy-btn {
+            padding: 10px 25px; border-radius: 50px; cursor: pointer; border: 0; background-color: white; 
+            box-shadow: rgb(0 0 0 / 5%) 0 0 8px; letter-spacing: 1.5px; text-transform: uppercase; 
+            font-size: 13px; font-weight: bold; transition: all 0.5s ease; color: #4f46e5;
+        }
+        .fancy-btn:hover {
+            letter-spacing: 3px; background-color: hsl(261deg 80% 48%); color: hsl(0, 0%, 100%); 
+            box-shadow: rgb(93 24 220) 0px 7px 29px 0px;
+        }
+        .fancy-btn:active {
+            letter-spacing: 3px; background-color: hsl(261deg 80% 48%); color: hsl(0, 0%, 100%); 
+            box-shadow: rgb(93 24 220) 0px 0px 0px 0px; transform: translateY(5px); transition: 100ms;
+        }
+    </style>
+</head>
+<body class="p-2 md:p-6 lg:p-8">
+    
+    <div id="login-modal" class="fixed inset-0 bg-gray-900 bg-opacity-95 flex items-center justify-center z-[100] p-4">
+        <div class="bg-white p-6 md:p-8 rounded-xl shadow-2xl w-full max-w-md">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Dashboard Login</h2>
+            <div class="space-y-5">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">User Name</label>
+                    <input type="email" id="login-email" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="Enter Your Name😊">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <div class="relative">
+                        <input type="password" id="login-password" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="•••••••">
+                        <button type="button" id="toggle-password" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 font-bold">👁️</button>
+                    </div>
+                </div>
+                <button id="login-submit-btn" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 transition flex justify-center items-center">Login</button>
+                <p id="login-error" class="text-red-500 text-sm text-center hidden bg-red-50 p-2 rounded-lg border border-red-100"></p>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-dashboard" class="max-w-7xl mx-auto space-y-6 md:space-y-8 hidden">
+        
+    
+        <header class="flex flex-col md:flex-row md:justify-between md:items-end gap-4 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div>
+                <h1 class="text-2xl md:text-4xl font-bold text-gray-800 tracking-tight">Dashboard</h1>
+                <div class="flex flex-wrap items-center gap-4 mt-3">
+                    <p id="user-role-badge" class="text-sm font-bold text-indigo-600 bg-indigo-50 inline-block px-3 py-1 rounded-full">Loading Role...</p>
+                    <button class="fancy-btn" onclick="window.open('https://hey-am1t.github.io/Attendify/index.html', '_blank')">Attendify App</button>
+                </div>
+            </div>
+            <button id="logout-btn" class="text-sm font-bold text-red-600 hover:text-red-800 hover:bg-red-100 bg-red-50 px-5 py-2.5 rounded-lg transition w-full md:w-auto border border-red-100">Secure Logout</button>
+        </header>
+
+        <main class="space-y-6 md:space-y-8">
+            <section id="metrics-section" class="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+                <div class="card p-4 md:p-6 flex flex-col justify-center items-center md:items-start text-center md:text-left border border-gray-100">
+                    <p class="text-xs md:text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Total Staff</p>
+                    <p id="total-employees" class="text-3xl md:text-4xl font-black text-gray-800">-</p>
+                </div>
+                <div class="card p-4 md:p-6 flex flex-col justify-center items-center md:items-start text-center md:text-left border border-green-100 bg-green-50/30">
+                    <p class="text-xs md:text-sm font-bold text-green-600 uppercase tracking-wider mb-1">Present Today</p>
+                    <p id="present-today" class="text-3xl md:text-4xl font-black text-green-600">-</p>
+                </div>
+                <div class="card p-4 md:p-6 flex flex-col justify-center items-center md:items-start text-center md:text-left border border-yellow-100 bg-yellow-50/30 col-span-2 md:col-span-1">
+                    <p class="text-xs md:text-sm font-bold text-yellow-600 uppercase tracking-wider mb-1">On Leave</p>
+                    <p id="on-leave-today" class="text-3xl md:text-4xl font-black text-yellow-600">-</p>
+                </div>
+            </section>
+
+            <section class="card p-4 md:p-6 border border-gray-100">
+                <h2 class="text-lg md:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <span class="w-2 h-6 bg-indigo-500 rounded-full block"></span> Pending Leave Requests
+                </h2>
+                <div id="pending-leave-table-container" class="overflow-x-auto custom-scrollbar border border-gray-200 rounded-lg"></div>
+            </section>
+
+            <section class="card p-4 md:p-6 border border-gray-100">
+                <h2 class="text-lg md:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <span class="w-2 h-6 bg-blue-500 rounded-full block"></span> Attendance Log
+                </h2>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200 items-end">
+                    <input type="text" id="name-filter" placeholder="Search Name/ID..." class="w-full p-2.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500">
+                    <select id="department-filter" class="w-full p-2.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"><option value="">All Departments</option></select>
+                    
+                    <input type="date" id="date-filter" class="w-full p-2.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 text-gray-700">
+                    
+                    <button id="apply-filter-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2.5 rounded-md transition-colors text-sm shadow-sm">Apply Filter</button>
+                </div>
+                
+                <div id="attendance-table-container" class="h-[400px] md:h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar border border-gray-200 rounded-lg relative"></div>
+            </section>
+        </main>
+        
+        <div id="loading-overlay" class="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-[200] hidden">
+            <div class="loader"></div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- SECURE CONFIGURATION ---
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbzdQpbqWwbFLMvdZEn4xHM0QcDS4LtExrpvGAOjcGtxsU7zVqDGSLlj3z7loWmPtSrS/exec';
+
+        let allData = { attendance: [], leave: [], employees: [], role: '', unit: '' };
+        let currentUser = { email: '', password: '' };
+
+        // --- ELEMENTS ---
+        const elements = {
+            loginModal: document.getElementById('login-modal'),
+            mainDashboard: document.getElementById('main-dashboard'),
+            loginEmail: document.getElementById('login-email'),
+            loginPass: document.getElementById('login-password'),
+            loginBtn: document.getElementById('login-submit-btn'),
+            loginError: document.getElementById('login-error'),
+            logoutBtn: document.getElementById('logout-btn'),
+            loadingOverlay: document.getElementById('loading-overlay'),
+            totalEmployees: document.getElementById('total-employees'),
+            presentToday: document.getElementById('present-today'),
+            onLeaveToday: document.getElementById('on-leave-today'),
+            roleBadge: document.getElementById('user-role-badge'),
+            pendingLeaveContainer: document.getElementById('pending-leave-table-container'),
+            attendanceContainer: document.getElementById('attendance-table-container'),
+            nameFilter: document.getElementById('name-filter'),
+            dateFilter: document.getElementById('date-filter'),
+            departmentFilter: document.getElementById('department-filter'),
+            togglePassword: document.getElementById('toggle-password'),
+            applyFilterBtn: document.getElementById('apply-filter-btn') // <-- Ye add karein
+        
+        };
+
+        // --- SHOW PASSWORD LOGIC ---
+        elements.togglePassword.addEventListener('click', () => {
+            const type = elements.loginPass.getAttribute('type') === 'password' ? 'text' : 'password';
+            elements.loginPass.setAttribute('type', type);
+            elements.togglePassword.textContent = type === 'password' ? '👁️' : '🙈';
+        });
+
+        function showLoader(show) {
+            if (show) elements.loadingOverlay.classList.remove('hidden');
+            else elements.loadingOverlay.classList.add('hidden');
+        }
+
+        // --- AUTHENTICATION ---
+        elements.loginBtn.addEventListener('click', async () => {
+            const email = elements.loginEmail.value.trim();
+            const pass = elements.loginPass.value.trim();
+            if (!email || !pass) return;
+
+            elements.loginBtn.innerHTML = '<div class="loader" style="width: 20px; height: 20px; border-width: 2px;"></div>';
+            elements.loginBtn.disabled = true;
+            elements.loginError.classList.add('hidden');
+
+            currentUser = { email, password: pass };
+            
+            try {
+                await fetchData(); 
+                elements.loginModal.classList.add('hidden');
+                elements.mainDashboard.classList.remove('hidden');
+                sessionStorage.setItem('attendify_admin_email', currentUser.email);
+                sessionStorage.setItem('attendify_admin_pass', currentUser.password);
+                
+                // Set the specific role UI
+                if(allData.role === 'SuperAdmin') {
+                    elements.roleBadge.innerHTML = `🟢 SUPER ADMIN (Access: All Units)`;
+                    elements.roleBadge.className = "text-xs md:text-sm font-bold text-green-700 bg-green-100 inline-block px-3 py-1 rounded-full mt-2";
+                } else {
+                    elements.roleBadge.innerHTML = `🔵 UNIT MANAGER (Access: Unit ${allData.unit})`;
+                    elements.roleBadge.className = "text-xs md:text-sm font-bold text-blue-700 bg-blue-100 inline-block px-3 py-1 rounded-full mt-2";
+                }
+
+            } catch (error) {
+                elements.loginError.textContent = error.message || "Invalid Credentials.";
+                elements.loginError.classList.remove('hidden');
+            } finally {
+                elements.loginBtn.innerHTML = 'Login';
+                elements.loginBtn.disabled = false;
+            }
+        });
+
+        elements.logoutBtn.addEventListener('click', () => {
+            sessionStorage.removeItem('attendify_admin_email');
+            sessionStorage.removeItem('attendify_admin_pass');
+            currentUser = { email: '', password: '' };
+            elements.loginEmail.value = '';
+            elements.loginPass.value = '';
+            elements.mainDashboard.classList.add('hidden');
+            elements.loginModal.classList.remove('hidden');
+        });
+
+        // --- DATA FETCHING ---
+        async function fetchData() {
+            showLoader(true);
+            try {
+                const response = await fetch(`${GAS_URL}?action=getDashboardData&email=${encodeURIComponent(currentUser.email)}&password=${encodeURIComponent(currentUser.password)}`);
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    allData = result.data;
+                    renderMetrics();
+                    renderPendingLeave();
+                    renderAttendanceTable();
+                    renderAttendanceTable();
+                    // FIX: Changed dayFilter to departmentFilter since dayFilter was removed
+                    if (elements.departmentFilter.options.length <= 1) initializeFilters();
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                throw error;
+            } finally {
+                showLoader(false);
+            }
+        }
+
+        async function updateLeaveStatus(leaveId, newStatus) {
+            if (!confirm(`Are you sure you want to ${newStatus.toLowerCase()} this request?`)) return;
+            
+            try {
+                showLoader(true);
+                const payload = { action: 'updateLeaveStatus', email: currentUser.email, password: currentUser.password, leaveId, newStatus };
+                const response = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload), redirect: 'follow' });
+                const result = await response.json();
+                
+                if (result.status !== 'success') throw new Error(result.message);
+                await fetchData(); 
+            } catch (error) {
+                alert('Failed to update leave status: ' + error.message);
+            } finally {
+                showLoader(false);
+            }
+        }
+
+        // --- RENDERING ---
+        function renderMetrics() {
+            const todayStr = new Date().toLocaleDateString('en-IN');
+
+            elements.totalEmployees.textContent = allData.employees.length;
+
+            // BUG FIX: Compare actual local dates string instead of raw timestamps
+            const presentTodayIds = new Set(allData.attendance.filter(att => {
+                const attDateStr = new Date(att.Timestamp).toLocaleDateString('en-IN');
+                const stat = String(att.Status || att['Status (IN/OUT)'] || '').trim().toUpperCase();
+                return attDateStr === todayStr && stat === 'IN';
+            }).map(att => att.EmployeeID || att['Employee ID']));
+            
+            elements.presentToday.textContent = presentTodayIds.size;
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const onLeaveTodayIds = new Set(allData.leave
+                .filter(l => {
+                    const startDate = new Date(l.StartDate).setHours(0,0,0,0);
+                    const endDate = new Date(l.EndDate).setHours(0,0,0,0);
+                    return l.Status === 'Approved' && today.getTime() >= startDate && today.getTime() <= endDate;
+                })
+                .map(l => l.EmployeeID)
+            );
+            elements.onLeaveToday.textContent = onLeaveTodayIds.size;
+        }
+
+        function renderPendingLeave() {
+            const pending = allData.leave.filter(l => l.Status === 'Pending');
+            if (pending.length === 0) {
+                elements.pendingLeaveContainer.innerHTML = '<div class="p-8 text-center text-gray-500 font-medium bg-gray-50 rounded-lg">No pending leave requests for your unit.</div>';
+                return;
+            }
+            
+            const tableRows = pending.map(req => {
+                const emp = allData.employees.find(e => e.EmployeeID === req.EmployeeID) || {};
+                return `
+                    <tr class="border-b hover:bg-gray-50 transition-colors">
+                        <td class="p-3 md:p-4 font-bold text-gray-800 whitespace-nowrap">${req.EmployeeName} <br><span class="text-xs font-normal text-gray-500">${emp.EmployeeID || 'Unknown ID'}</span></td>
+                        <td class="p-3 md:p-4 text-sm whitespace-nowrap"><span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-bold">${req.LeaveType}</span></td>
+                        <td class="p-3 md:p-4 text-sm whitespace-nowrap font-medium text-gray-600">${new Date(req.StartDate).toLocaleDateString()} to ${new Date(req.EndDate).toLocaleDateString()}</td>
+                        <td class="p-3 md:p-4 text-sm text-gray-600 max-w-xs truncate" title="${req.Reason}">${req.Reason}</td>
+                        <td class="p-3 md:p-4 whitespace-nowrap">
+                            <div class="flex gap-2">
+                                <button onclick="updateLeaveStatus('${req.LeaveID}', 'Approved')" class="text-xs bg-green-100 text-green-700 font-bold px-3 py-2 rounded-md hover:bg-green-200 transition-colors shadow-sm">Approve</button>
+                                <button onclick="updateLeaveStatus('${req.LeaveID}', 'Rejected')" class="text-xs bg-red-100 text-red-700 font-bold px-3 py-2 rounded-md hover:bg-red-200 transition-colors shadow-sm">Reject</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            elements.pendingLeaveContainer.innerHTML = `
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-gray-500 uppercase bg-gray-100/50">
+                        <tr><th class="p-3 md:p-4">Employee</th><th class="p-3 md:p-4">Type</th><th class="p-3 md:p-4">Dates</th><th class="p-3 md:p-4">Reason</th><th class="p-3 md:p-4">Actions</th></tr>
+                    </thead>
+                    <tbody class="bg-white">${tableRows}</tbody>
+                </table>
+            `;
+        }
+
+        function renderAttendanceTable() {
+            const searchTerm = elements.nameFilter.value.toLowerCase();
+            const selectedDate = elements.dateFilter.value; // Format comes out as YYYY-MM-DD
+            const selectedDept = elements.departmentFilter.value;
+
+            const filtered = allData.attendance.filter(att => {
+                const date = new Date(att.Timestamp);
+                const nameMatch = (att.FullName || att['Full Name'] || '').toLowerCase();
+                const idMatch = (att.EmployeeID || att['Employee ID'] || '').toLowerCase();
+                
+                const emp = allData.employees.find(e => (e.EmployeeID || e['Employee ID']) === (att.EmployeeID || att['Employee ID'])) || {};
+                const empDept = emp.Department || '';
+
+                const matchesSearch = nameMatch.includes(searchTerm) || idMatch.includes(searchTerm);
+                const matchesDept = !selectedDept || empDept === selectedDept;
+                
+                // New Date Matching Logic
+                let matchesDate = true;
+                if (selectedDate) {
+                    const localMonth = String(date.getMonth() + 1).padStart(2, '0');
+                    const localDay = String(date.getDate()).padStart(2, '0');
+                    const localYMD = `${date.getFullYear()}-${localMonth}-${localDay}`;
+                    matchesDate = localYMD === selectedDate;
+                }
+
+                return matchesSearch && matchesDept && matchesDate;
+            });
+
+            const tableRows = filtered.map(att => {
+                const stat = att.Status || att['Status (IN/OUT)'];
+                const statColor = stat === 'IN' ? 'text-green-700 bg-green-100 border-green-200' : 'text-red-700 bg-red-100 border-red-200';
+                const timeSource = att['Time Source'] || 'Server (Live)';
+                const locationText = att['Address'] || att['Location (Lat, Long)'] || 'Location not recorded';
+
+                return `
+                <tr class="hover:bg-gray-50 border-b transition-colors">
+                    <td class="p-3 md:p-4 whitespace-nowrap">
+                        <div class="text-sm font-bold text-gray-800">${new Date(att.Timestamp).toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'})}</div>
+                        <div class="text-xs text-gray-500">${new Date(att.Timestamp).toLocaleDateString('en-IN')}</div>
+                    </td>
+                    <td class="p-3 md:p-4 whitespace-nowrap">
+                        <div class="text-sm font-bold text-indigo-700">${att.EmployeeID || att['Employee ID']}</div>
+                        <div class="text-sm font-medium text-gray-700">${att.FullName || att['Full Name']}</div>
+                    </td>
+                    <td class="p-3 md:p-4 whitespace-nowrap">
+                        <span class="px-3 py-1 rounded-md text-xs font-bold border ${statColor}">${stat}</span>
+                    </td>
+                    <td class="p-3 md:p-4 whitespace-nowrap">
+                        <a href="${att.PhotoURL || att['Photo URL'] || att['Photo Link']}" target="_blank" class="text-xs bg-indigo-50 text-indigo-700 font-bold px-3 py-1.5 rounded hover:bg-indigo-100 transition-colors inline-flex items-center gap-1">📸 Photo</a>
+                    </td>
+                    <td class="p-3 md:p-4 text-xs text-gray-600 max-w-xs truncate" title="${locationText}">${locationText}</td>
+                    <td class="p-3 md:p-4 whitespace-nowrap text-xs text-gray-500 font-medium">${timeSource}</td>
+                </tr>
+            `}).join('');
+
+            elements.attendanceContainer.innerHTML = `
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-gray-500 uppercase table-header bg-gray-100/50 shadow-sm">
+                        <tr><th class="p-3 md:p-4">Time & Date</th><th class="p-3 md:p-4">Employee</th><th class="p-3 md:p-4">Action</th><th class="p-3 md:p-4">Verification</th><th class="p-3">Location</th><th class="p-3 md:p-4">Source</th></tr>
+                    </thead>
+                    <tbody class="bg-white">${tableRows || '<tr><td colspan="6" class="p-8 text-center text-gray-500 font-medium">No records found matching your filters.</td></tr>'}</tbody>
+                </table>
+            `;
+        }
+
+        function initializeFilters() {
+            const depts = [...new Set(allData.employees.map(e => e.Department).filter(d => d))].sort();
+            elements.departmentFilter.innerHTML = '<option value="">All Departments</option>' + depts.map(d => `<option value="${d}">${d}</option>`).join('');
+            
+            // Set today's date as default in the calendar picker
+            const today = new Date();
+            const localYMD = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            elements.dateFilter.value = localYMD;
+        }
+
+        elements.applyFilterBtn.addEventListener('click', () => {
+            elements.applyFilterBtn.innerHTML = '<div class="loader inline-block border-white border-2 w-4 h-4"></div>';
+            setTimeout(() => {
+                renderAttendanceTable();
+                elements.applyFilterBtn.innerHTML = 'Apply Filter';
+            }, 300);
+        });
+
+        elements.nameFilter.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') elements.applyFilterBtn.click();
+        });
+
+        window.updateLeaveStatus = updateLeaveStatus;
+        const savedEmail = sessionStorage.getItem('attendify_admin_email');
+        const savedPass = sessionStorage.getItem('attendify_admin_pass');
+        if (savedEmail && savedPass) {
+            elements.loginEmail.value = savedEmail;
+            elements.loginPass.value = savedPass;
+            elements.loginBtn.click();
+        }
+    });
+    // --- PWA SERVICE WORKER ---
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('serviceworker.js');
+        }
+    </script>
+</body>
+</html>
